@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useUserStore } from '@/stores/user'
+import { ElMessage } from 'element-plus'
 
 const routes = [
   {
@@ -26,6 +27,33 @@ const routes = [
     component: () => import('@/views/user/Profile.vue'),
     meta: { requiresAuth: true },
   },
+  // 管理后台路由
+  {
+    path: '/admin',
+    component: () => import('@/layouts/AdminLayout.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+    redirect: '/admin/dashboard',
+    children: [
+      {
+        path: 'dashboard',
+        name: 'AdminDashboard',
+        component: () => import('@/views/admin/Dashboard.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true },
+      },
+      {
+        path: 'users',
+        name: 'UserManagement',
+        component: () => import('@/views/admin/UserManagement.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true },
+      },
+      {
+        path: 'models',
+        name: 'ModelManagement',
+        component: () => import('@/views/admin/ModelManagement.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true },
+      },
+    ],
+  },
 ]
 
 const router = createRouter({
@@ -35,11 +63,11 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
-  const authStore = useAuthStore()
+  const userStore = useUserStore()
 
   // 如果路由需要认证
   if (to.meta.requiresAuth) {
-    if (!authStore.isAuthenticated) {
+    if (!userStore.isAuthenticated) {
       // 未登录，跳转到登录页
       next({
         path: '/login',
@@ -47,16 +75,16 @@ router.beforeEach(async (to, from, next) => {
       })
     } else {
       // 已登录，检查是否需要管理员权限
-      if (to.meta.requiresAdmin && !authStore.isAdmin) {
-        next('/')
+      if (to.meta.requiresAdmin && !userStore.isAdmin) {
         ElMessage.error('需要管理员权限')
+        next('/')
       } else {
         next()
       }
     }
   } else {
     // 不需要认证的路由
-    if (authStore.isAuthenticated && (to.path === '/login' || to.path === '/register')) {
+    if (userStore.isAuthenticated && (to.path === '/login' || to.path === '/register')) {
       // 已登录用户访问登录/注册页，跳转到首页
       next('/')
     } else {
