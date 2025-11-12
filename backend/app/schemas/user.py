@@ -66,3 +66,28 @@ class UserListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# 管理员创建用户模式（可指定角色）
+class AdminUserCreate(BaseModel):
+    """管理员创建用户请求模式"""
+
+    username: str = Field(..., min_length=3, max_length=50, description="用户名")
+    email: EmailStr = Field(..., description="电子邮箱")
+    password: str = Field(..., min_length=6, max_length=50, description="密码")
+    role: UserRole = Field(UserRole.USER, description="用户角色")
+    is_active: bool = Field(True, description="是否激活")
+
+
+# 批量操作请求模式
+class BatchUserOperation(BaseModel):
+    """批量用户操作请求模式"""
+
+    user_ids: list[int] = Field(..., description="用户ID列表")
+
+
+# 批量更新状态请求模式
+class BatchUpdateStatus(BatchUserOperation):
+    """批量更新用户状态请求模式"""
+
+    is_active: bool = Field(..., description="激活状态")

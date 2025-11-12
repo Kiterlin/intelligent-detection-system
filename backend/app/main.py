@@ -1,8 +1,10 @@
 """
 FastAPI 应用主入口
 """
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.database import init_db
@@ -74,3 +76,8 @@ async def health_check():
 
 # 注册 API 路由
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# 挂载静态文件目录（用于提供上传的文件）
+uploads_dir = Path(__file__).resolve().parent.parent / "uploads"
+uploads_dir.mkdir(parents=True, exist_ok=True)  # 确保目录存在
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")

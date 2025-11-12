@@ -20,6 +20,7 @@ from app.core.database import Base
 
 # 导入所有模型（确保在创建迁移时能识别到）
 from app.models.user import User  # noqa
+from app.models.ml_model import MLModel  # noqa
 
 # Alembic Config 对象
 config = context.config

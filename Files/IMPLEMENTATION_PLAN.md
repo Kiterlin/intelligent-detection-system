@@ -1,0 +1,764 @@
+# 水下目标智能检测平台 - 实施计划
+
+> 本文档根据CLAUDE.md开发指南要求编写，将项目分为5个主要阶段，每个阶段包含明确的目标、成功标准、测试用例和状态跟踪。
+
+---
+
+## Stage 1: 基础设施与认证系统
+
+**Goal**: 搭建完整的项目基础架构，实现用户认证功能
+
+**Status**: Not Started
+
+### 具体任务
+
+#### 1.1 项目初始化
+- 创建前后端项目目录结构
+- 配置Python虚拟环境和依赖管理
+- 初始化Vue 3项目（Vite + Element Plus）
+- 配置Git仓库和.gitignore
+- 创建Docker Compose基础配置（PostgreSQL + Redis）
+
+#### 1.2 数据库设计
+- 设计User表结构（id, username, email, password_hash, role, created_at）
+- 设计MLModel表结构（id, name, version, file_path, is_active）
+- 设计DetectionHistory表结构（id, user_id, model_id, file_path, result_json, created_at）
+- 配置Alembic数据库迁移工具
+- 创建初始迁移脚本
+
+#### 1.3 认证系统后端
+- 安装JWT相关依赖（python-jose, passlib, bcrypt）
+- 实现密码哈希和验证函数
+- 实现JWT令牌生成和验证函数
+- 创建认证API端点：
+  - POST /api/v1/auth/register
+  - POST /api/v1/auth/login
+  - POST /api/v1/auth/refresh
+  - GET /api/v1/users/me
+- 创建认证依赖函数（get_current_user, get_current_admin）
+
+#### 1.4 认证系统前端
+- 创建登录页面（响应式设计）
+- 创建认证Store（Pinia）
+- 配置Axios请求/响应拦截器
+- 实现Token自动刷新机制
+- 实现路由守卫
+- 创建基础布局组件（Header + Sidebar + Main）
+
+### Success Criteria
+- [ ] FastAPI开发服务器正常运行（http://localhost:8000）
+- [ ] Vue开发服务器正常运行（http://localhost:5173）
+- [ ] 数据库连接成功，表结构创建完成
+- [ ] 用户可以成功注册和登录
+- [ ] JWT Token正确生成和验证
+- [ ] Token过期后自动刷新或跳转登录页
+- [ ] 密码使用bcrypt加密存储
+
+### Tests
+
+#### 单元测试
+```python
+# test_auth.py
+def test_password_hashing():
+    """测试密码哈希和验证"""
+    password = "test_password_123"
+    hashed = hash_password(password)
+    assert verify_password(password, hashed) == True
+    assert verify_password("wrong_password", hashed) == False
+
+def test_jwt_token_generation():
+    """测试JWT令牌生成"""
+    user_id = 1
+    token = create_access_token(data={"sub": user_id})
+    assert token is not None
+    assert len(token) > 0
+
+def test_jwt_token_verification():
+    """测试JWT令牌验证"""
+    user_id = 1
+    token = create_access_token(data={"sub": user_id})
+    payload = decode_token(token)
+    assert payload["sub"] == user_id
+```
+
+#### API集成测试
+```python
+# test_auth_api.py
+def test_user_registration(client):
+    """测试用户注册"""
+    response = client.post("/api/v1/auth/register", json={
+        "username": "testuser",
+        "email": "test@example.com",
+        "password": "Test123456"
+    })
+    assert response.status_code == 201
+    assert "id" in response.json()
+
+def test_user_login(client):
+    """测试用户登录"""
+    # 先注册
+    client.post("/api/v1/auth/register", json={
+        "username": "testuser",
+        "email": "test@example.com",
+        "password": "Test123456"
+    })
+    # 再登录
+    response = client.post("/api/v1/auth/login", json={
+        "username": "testuser",
+        "password": "Test123456"
+    })
+    assert response.status_code == 200
+    assert "access_token" in response.json()
+
+def test_get_current_user(client):
+    """测试获取当前用户信息"""
+    # 登录获取token
+    login_response = client.post("/api/v1/auth/login", json={
+        "username": "testuser",
+        "password": "Test123456"
+    })
+    token = login_response.json()["access_token"]
+
+    # 使用token获取用户信息
+    response = client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    assert response.json()["username"] == "testuser"
+```
+
+#### 手动测试清单
+- [ ] 访问http://localhost:8000/docs查看API文档
+- [ ] 使用Postman测试注册API
+- [ ] 使用Postman测试登录API
+- [ ] 在前端页面完成注册流程
+- [ ] 在前端页面完成登录流程
+- [ ] 验证登录后跳转到主页
+- [ ] 验证未登录时访问受保护页面会跳转到登录页
+- [ ] 验证Token过期后的刷新机制
+
+---
+
+## Stage 2: 管理后台功能
+
+**Goal**: 实现管理员的用户管理和模型管理功能
+
+**Status**: Not Started
+
+### 具体任务
+
+#### 2.1 用户管理后端API
+- 实现获取用户列表API（支持分页、搜索、筛选）
+- 实现创建用户API（管理员权限）
+- 实现更新用户API（管理员权限）
+- 实现删除用户API（管理员权限）
+- 添加权限验证装饰器（require_admin）
+- 实现批量操作API
+
+#### 2.2 模型管理后端API
+- 实现模型文件上传API（验证文件格式和大小）
+- 实现获取模型列表API
+- 实现更新模型信息API
+- 实现激活/禁用模型API
+- 实现删除模型API
+- 配置静态文件服务
+
+#### 2.3 管理后台前端布局
+- 创建管理后台主布局
+- 实现侧边栏菜单（仪表盘、用户管理、模型管理）
+- 实现顶部工具栏（用户信息、退出登录）
+- 添加面包屑导航
+
+#### 2.4 仪表盘页面
+- 创建统计卡片组件（用户总数、模型数量、今日检测数）
+- 集成ECharts图表库
+- 实现检测趋势图表（最近7天）
+- 实现模型使用统计图表
+
+#### 2.5 用户管理页面
+- 创建用户列表表格（Element Plus Table）
+- 实现搜索和筛选功能
+- 创建新增/编辑用户模态框
+- 实现删除确认对话框
+- 添加表格分页
+
+#### 2.6 模型管理页面
+- 创建模型列表表格
+- 实现模型文件上传组件（拖拽上传）
+- 添加上传进度显示
+- 实现模型激活/禁用开关
+- 显示模型状态标签
+
+### Success Criteria
+- [ ] 管理员可以查看用户列表（支持分页）
+- [ ] 管理员可以创建、编辑、删除用户
+- [ ] 管理员可以上传.pt模型文件
+- [ ] 管理员可以激活/禁用模型
+- [ ] 管理员可以删除模型
+- [ ] 仪表盘正确显示统计信息
+- [ ] 所有操作有明确的成功/失败反馈
+- [ ] 表格支持搜索和筛选
+
+### Tests
+
+#### 单元测试
+```python
+# test_admin.py
+def test_admin_permission_check():
+    """测试管理员权限检查"""
+    admin_user = User(role="admin")
+    regular_user = User(role="user")
+
+    assert is_admin(admin_user) == True
+    assert is_admin(regular_user) == False
+
+def test_model_file_validation():
+    """测试模型文件验证"""
+    valid_file = "yolov8n.pt"
+    invalid_file = "model.txt"
+
+    assert validate_model_file(valid_file) == True
+    assert validate_model_file(invalid_file) == False
+```
+
+#### API集成测试
+```python
+# test_admin_api.py
+def test_get_users_list(client, admin_token):
+    """测试获取用户列表"""
+    response = client.get(
+        "/api/v1/admin/users",
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 200
+    assert "items" in response.json()
+    assert "total" in response.json()
+
+def test_create_user(client, admin_token):
+    """测试创建用户"""
+    response = client.post(
+        "/api/v1/admin/users",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "Password123",
+            "role": "user"
+        }
+    )
+    assert response.status_code == 201
+    assert response.json()["username"] == "newuser"
+
+def test_upload_model(client, admin_token):
+    """测试上传模型文件"""
+    with open("test_model.pt", "rb") as f:
+        response = client.post(
+            "/api/v1/admin/models/upload",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            files={"file": ("yolov8n.pt", f, "application/octet-stream")}
+        )
+    assert response.status_code == 201
+    assert "id" in response.json()
+
+def test_regular_user_cannot_access_admin_api(client, user_token):
+    """测试普通用户无法访问管理员API"""
+    response = client.get(
+        "/api/v1/admin/users",
+        headers={"Authorization": f"Bearer {user_token}"}
+    )
+    assert response.status_code == 403
+```
+
+#### 手动测试清单
+- [ ] 以管理员身份登录
+- [ ] 访问仪表盘，验证统计数据正确
+- [ ] 在用户管理页面创建新用户
+- [ ] 编辑用户信息
+- [ ] 删除用户（验证确认对话框）
+- [ ] 测试用户列表搜索功能
+- [ ] 测试用户列表分页功能
+- [ ] 上传YOLO模型文件（测试不同大小的文件）
+- [ ] 激活/禁用模型（验证状态切换）
+- [ ] 删除模型（验证确认对话框）
+- [ ] 以普通用户身份登录，验证无法访问管理后台
+
+---
+
+## Stage 3: AI检测核心功能
+
+**Goal**: 实现图片和视频的YOLO目标检测功能
+
+**Status**: Not Started
+
+### 具体任务
+
+#### 3.1 模型加载服务
+- 安装AI相关依赖（torch, ultralytics, opencv-python, pillow）
+- 创建ModelService类
+- 实现模型加载和缓存机制（LRU Cache）
+- 实现模型预热功能
+- 处理CPU/GPU设备选择
+
+#### 3.2 图片检测服务
+- 创建DetectionService类
+- 实现图片预处理（resize, normalize）
+- 实现YOLO推理
+- 实现结果后处理（NMS、坐标转换）
+- 实现检测框绘制功能
+
+#### 3.3 图片检测API
+- 实现图片上传和检测API（POST /api/v1/detect/image）
+- 实现检测结果可视化API
+- 实现检测历史保存
+- 实现结果文件管理
+
+#### 3.4 视频检测服务
+- 配置Celery和Redis
+- 创建视频检测Celery任务
+- 实现视频逐帧处理
+- 实现进度跟踪机制
+- 实现结果视频生成
+
+#### 3.5 视频检测API
+- 实现视频上传API（POST /api/v1/detect/video）
+- 实现任务状态查询API（GET /api/v1/tasks/{task_id}/status）
+- 实现视频结果下载API
+- 配置静态文件服务
+
+#### 3.6 检测前端页面
+- 创建检测页面布局（左右分栏）
+- 实现图片上传组件（拖拽上传）
+- 添加模型选择下拉框
+- 添加检测参数配置（置信度阈值、IOU阈值）
+- 创建结果展示组件
+- 实现结果下载功能
+
+#### 3.7 视频检测前端页面
+- 创建视频检测标签页
+- 实现视频上传组件
+- 实现任务提交和轮询机制
+- 创建进度条组件
+- 创建视频结果播放器
+
+### Success Criteria
+- [ ] 成功加载YOLO模型（YOLOv5或YOLOv8）
+- [ ] 图片检测准确性达到预期
+- [ ] 单张图片检测时间 < 3秒（CPU）或 < 1秒（GPU）
+- [ ] 视频可以异步处理
+- [ ] 任务进度正确显示
+- [ ] 检测结果可以下载
+- [ ] 支持多模型切换
+- [ ] 检测历史正确保存
+
+### Tests
+
+#### 单元测试
+```python
+# test_detection.py
+def test_model_loading():
+    """测试模型加载"""
+    service = ModelService()
+    model = service.load_model("yolov8n.pt")
+    assert model is not None
+
+def test_image_preprocessing():
+    """测试图片预处理"""
+    image = load_test_image("test.jpg")
+    processed = preprocess_image(image)
+    assert processed.shape == (640, 640, 3)
+
+def test_yolo_inference():
+    """测试YOLO推理"""
+    model = load_test_model()
+    image = load_test_image("test.jpg")
+    results = model(image)
+    assert results is not None
+    assert len(results) > 0
+
+def test_result_postprocessing():
+    """测试结果后处理"""
+    raw_results = load_test_results()
+    processed = postprocess_results(raw_results)
+    assert "boxes" in processed
+    assert "scores" in processed
+    assert "classes" in processed
+```
+
+#### API集成测试
+```python
+# test_detection_api.py
+def test_image_detection(client, user_token):
+    """测试图片检测API"""
+    with open("test_image.jpg", "rb") as f:
+        response = client.post(
+            "/api/v1/detect/image",
+            headers={"Authorization": f"Bearer {user_token}"},
+            files={"file": ("test.jpg", f, "image/jpeg")},
+            data={"model_id": 1, "conf_threshold": 0.5}
+        )
+    assert response.status_code == 200
+    assert "detections" in response.json()
+    assert "result_image_url" in response.json()
+
+def test_video_detection_submit(client, user_token):
+    """测试视频检测提交"""
+    with open("test_video.mp4", "rb") as f:
+        response = client.post(
+            "/api/v1/detect/video",
+            headers={"Authorization": f"Bearer {user_token}"},
+            files={"file": ("test.mp4", f, "video/mp4")},
+            data={"model_id": 1}
+        )
+    assert response.status_code == 202
+    assert "task_id" in response.json()
+
+def test_task_status_query(client, user_token, task_id):
+    """测试任务状态查询"""
+    response = client.get(
+        f"/api/v1/tasks/{task_id}/status",
+        headers={"Authorization": f"Bearer {user_token}"}
+    )
+    assert response.status_code == 200
+    assert "status" in response.json()
+    assert "progress" in response.json()
+```
+
+#### 性能测试
+```python
+# test_performance.py
+def test_detection_speed():
+    """测试检测速度"""
+    model = load_model("yolov8n.pt")
+    image = load_test_image("test.jpg")
+
+    start_time = time.time()
+    results = model(image)
+    end_time = time.time()
+
+    inference_time = end_time - start_time
+    assert inference_time < 3.0  # 应在3秒内完成
+```
+
+#### 手动测试清单
+- [ ] 上传单张图片并检测
+- [ ] 验证检测框和标签正确显示
+- [ ] 测试不同置信度阈值
+- [ ] 切换不同YOLO模型
+- [ ] 下载检测结果图片
+- [ ] 上传视频文件
+- [ ] 验证任务进度实时更新
+- [ ] 等待视频处理完成
+- [ ] 播放结果视频
+- [ ] 下载结果视频
+- [ ] 查看检测历史记录
+- [ ] 测试大文件上传（>100MB）
+- [ ] 测试长视频处理（>5分钟）
+
+---
+
+## Stage 4: 用户界面完善与系统优化
+
+**Goal**: 完善用户端所有功能，优化系统性能
+
+**Status**: Not Started
+
+### 具体任务
+
+#### 4.1 检测历史页面
+- 创建历史记录列表页面
+- 实现历史记录API（支持分页、筛选）
+- 显示历史记录卡片（缩略图、时间、结果摘要）
+- 实现查看详情功能
+- 实现删除历史记录功能
+- 实现批量删除功能
+
+#### 4.2 视频播放器页面
+- 创建专用视频播放器页面
+- 集成Video.js播放器
+- 添加播放控制
+- 显示逐帧检测信息
+- 实现帧跳转功能
+
+#### 4.3 个人中心
+- 创建个人中心页面
+- 显示用户基本信息
+- 实现修改密码功能
+- 显示用户统计信息
+
+#### 4.4 用户体验优化
+- 添加全局加载动画
+- 优化错误提示
+- 添加空状态提示
+- 实现图片懒加载
+- 优化移动端响应式布局
+
+#### 4.5 性能优化
+- 实现模型预加载和缓存
+- 优化数据库查询（添加索引）
+- 实现Redis缓存
+- 优化文件上传
+- 前端代码分割和懒加载
+
+#### 4.6 高级功能
+- 实现检测结果JSON导出
+- 实现批量文件处理
+- 添加检测参数预设
+- 实现模型对比功能（可选）
+
+### Success Criteria
+- [ ] 用户可以查看和管理检测历史
+- [ ] 视频播放器功能完善
+- [ ] 用户可以修改个人信息
+- [ ] 所有页面响应式适配
+- [ ] 模型加载速度提升50%以上
+- [ ] API平均响应时间 < 200ms
+- [ ] 支持批量处理和多种导出格式
+
+### Tests
+
+#### 性能测试
+```python
+# test_performance.py
+def test_model_caching():
+    """测试模型缓存"""
+    service = ModelService()
+
+    # 第一次加载
+    start1 = time.time()
+    model1 = service.load_model("yolov8n.pt")
+    time1 = time.time() - start1
+
+    # 第二次加载（应从缓存读取）
+    start2 = time.time()
+    model2 = service.load_model("yolov8n.pt")
+    time2 = time.time() - start2
+
+    assert time2 < time1 * 0.1  # 缓存加载应快10倍以上
+
+def test_api_response_time(client):
+    """测试API响应时间"""
+    start = time.time()
+    response = client.get("/api/v1/models")
+    end = time.time()
+
+    response_time = end - start
+    assert response_time < 0.2  # 应在200ms内响应
+```
+
+#### 手动测试清单
+- [ ] 查看检测历史列表
+- [ ] 筛选历史记录（按日期、类型）
+- [ ] 删除单条历史记录
+- [ ] 批量删除历史记录
+- [ ] 播放视频检测结果
+- [ ] 修改个人密码
+- [ ] 导出检测结果为JSON
+- [ ] 测试批量图片上传
+- [ ] 在移动设备上测试所有页面
+- [ ] 测试弱网环境下的用户体验
+- [ ] 测试模型切换速度
+- [ ] 验证缓存机制工作正常
+
+---
+
+## Stage 5: 测试、文档与部署
+
+**Goal**: 完成全面测试，编写文档，实现生产环境部署
+
+**Status**: Not Started
+
+### 具体任务
+
+#### 5.1 测试完善
+- 配置pytest和Vitest测试框架
+- 编写单元测试（覆盖率≥80%）
+- 编写API集成测试（覆盖率100%）
+- 编写前端组件测试
+- 编写E2E测试（Playwright/Cypress）
+- 进行压力测试（Locust）
+- 进行安全测试
+
+#### 5.2 文档编写
+- 完善OpenAPI文档
+- 编写用户使用手册
+- 编写管理员手册
+- 编写部署文档
+- 编写开发者指南
+- 创建FAQ文档
+
+#### 5.3 Docker容器化
+- 编写后端Dockerfile（多阶段构建）
+- 编写前端Dockerfile
+- 完善docker-compose.yml
+- 配置数据卷和网络
+- 优化镜像大小
+
+#### 5.4 Nginx配置
+- 编写Nginx配置文件
+- 配置反向代理
+- 配置SSL证书（Let's Encrypt）
+- 配置GZIP压缩
+- 配置文件上传大小限制
+
+#### 5.5 部署准备
+- 创建环境变量模板
+- 编写部署脚本
+- 编写备份脚本
+- 配置CI/CD（可选）
+- 配置监控和日志
+
+#### 5.6 生产环境部署
+- 部署到测试服务器
+- 进行性能测试
+- 进行安全加固
+- 配置自动备份
+- 编写运维文档
+
+### Success Criteria
+- [ ] 单元测试覆盖率≥80%
+- [ ] API测试覆盖率100%
+- [ ] 所有文档完整可用
+- [ ] 使用docker-compose可一键启动
+- [ ] HTTPS配置正确
+- [ ] 系统可以稳定运行在生产环境
+- [ ] 性能测试通过（支持20+并发用户）
+- [ ] 安全测试无严重漏洞
+
+### Tests
+
+#### 压力测试
+```python
+# locustfile.py
+from locust import HttpUser, task, between
+
+class WebsiteUser(HttpUser):
+    wait_time = between(1, 5)
+
+    def on_start(self):
+        """登录获取token"""
+        response = self.client.post("/api/v1/auth/login", json={
+            "username": "testuser",
+            "password": "Test123456"
+        })
+        self.token = response.json()["access_token"]
+
+    @task(3)
+    def get_models(self):
+        """获取模型列表"""
+        self.client.get(
+            "/api/v1/models",
+            headers={"Authorization": f"Bearer {self.token}"}
+        )
+
+    @task(1)
+    def detect_image(self):
+        """图片检测"""
+        with open("test.jpg", "rb") as f:
+            self.client.post(
+                "/api/v1/detect/image",
+                headers={"Authorization": f"Bearer {self.token}"},
+                files={"file": f}
+            )
+```
+
+#### 安全测试清单
+- [ ] SQL注入测试
+- [ ] XSS测试
+- [ ] CSRF测试
+- [ ] 文件上传漏洞测试
+- [ ] 权限绕过测试
+- [ ] 密码强度测试
+- [ ] JWT安全性测试
+
+#### 部署测试清单
+- [ ] 使用docker-compose up启动所有服务
+- [ ] 验证所有容器正常运行
+- [ ] 验证数据库连接正常
+- [ ] 验证Redis连接正常
+- [ ] 验证Celery Worker正常
+- [ ] 访问HTTPS网站，验证SSL证书
+- [ ] 测试文件上传功能
+- [ ] 测试图片检测功能
+- [ ] 测试视频检测功能
+- [ ] 验证日志正常记录
+- [ ] 测试数据持久化（重启容器后数据不丢失）
+- [ ] 进行压力测试（模拟20个并发用户）
+- [ ] 验证自动备份脚本
+
+#### 手动验收清单
+- [ ] 所有核心功能可用
+- [ ] 无P0/P1级别bug
+- [ ] 用户体验流畅
+- [ ] API文档完整准确
+- [ ] 用户手册清晰易懂
+- [ ] 部署文档可操作
+- [ ] 系统性能满足要求
+- [ ] 安全性达标
+
+---
+
+## 进度跟踪
+
+### 当前状态
+- **Stage 1**: Not Started
+- **Stage 2**: Not Started
+- **Stage 3**: Not Started
+- **Stage 4**: Not Started
+- **Stage 5**: Not Started
+
+### 完成时删除
+> 根据CLAUDE.md要求，当所有阶段完成后，删除本IMPLEMENTATION_PLAN.md文件。
+
+---
+
+## 注意事项
+
+### 开发原则
+1. **增量开发**：每个阶段完成后应该有可运行的代码
+2. **测试先行**：先写测试，再写实现（TDD）
+3. **持续集成**：频繁提交，频繁测试
+4. **代码审查**：重要代码需要review
+5. **文档同步**：代码和文档同步更新
+
+### 遇到问题时
+根据CLAUDE.md规定，最多尝试3次后必须停止并重新评估：
+1. 记录失败的尝试和错误信息
+2. 研究2-3个类似的实现方案
+3. 质疑当前的抽象层次是否合适
+4. 尝试不同的技术角度
+
+### 质量标准
+- 所有代码必须通过linter检查
+- 所有测试必须通过
+- 测试覆盖率必须达标
+- 代码必须有适当的注释
+- 提交信息必须清晰
+
+### 依赖关系
+- Stage 2依赖Stage 1完成
+- Stage 3依赖Stage 1和Stage 2完成
+- Stage 4可以与Stage 3并行部分功能
+- Stage 5在所有功能开发完成后进行
+
+---
+
+## 参考资源
+
+### 官方文档
+- FastAPI: https://fastapi.tiangolo.com/
+- Vue 3: https://vuejs.org/
+- Element Plus: https://element-plus.org/
+- Ultralytics YOLO: https://docs.ultralytics.com/
+- Docker: https://docs.docker.com/
+
+### 社区资源
+- FastAPI + Celery示例: https://github.com/GregaVrbancic/fastapi-celery
+- Vue 3最佳实践: https://vuejs.org/style-guide/
+- YOLO部署指南: https://github.com/ultralytics/ultralytics
+
+### 开发工具
+- API测试: Postman, Thunder Client
+- 数据库管理: DBeaver, pgAdmin
+- Redis管理: RedisInsight
+- 容器管理: Docker Desktop, Portainer

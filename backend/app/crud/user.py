@@ -3,7 +3,7 @@
 """
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, or_, delete
 from sqlalchemy.exc import IntegrityError
 
 from app.models.user import User, UserRole
@@ -183,3 +183,94 @@ async def get_users(
     """
     result = await db.execute(select(User).offset(skip).limit(limit))
     return list(result.scalars().all())
+
+
+async def get_users_with_filter(
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 100,
+    search: Optional[str] = None,
+    role: Optional[UserRole] = None,
+) -> tuple[list[User], int]:
+    """
+    获取用户列表（支持搜索和筛选）
+
+    Args:
+        db: 数据库会话
+        skip: 跳过的记录数
+        limit: 返回的最大记录数
+        search: 搜索关键词（搜索用户名、邮箱）
+        role: 角色筛选
+
+    Returns:
+        (用户列表, 总数) 元组
+    """
+    query = select(User)
+
+    # 搜索条件
+    if search:
+        search_filter = or_(
+            User.username.ilike(f"%{search}%"),
+            User.email.ilike(f"%{search}%")
+        )
+        query = query.where(search_filter)
+
+    # 角色筛选
+    if role:
+        query = query.where(User.role == role)
+
+    # 获取总数
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+
+    # 分页查询
+    query = query.offset(skip).limit(limit).order_by(User.created_at.desc())
+    result = await db.execute(query)
+    users = list(result.scalars().all())
+
+    return users, total or 0
+
+
+async def batch_delete_users(db: AsyncSession, user_ids: list[int]) -> int:
+    """
+    批量删除用户
+
+    Args:
+        db: 数据库会话
+        user_ids: 用户ID列表
+
+    Returns:
+        删除的用户数量
+    """
+    result = await db.execute(
+        delete(User).where(User.id.in_(user_ids))
+    )
+    await db.commit()
+    return result.rowcount
+
+
+async def batch_update_user_status(
+    db: AsyncSession, user_ids: list[int], is_active: bool
+) -> int:
+    """
+    批量更新用户状态
+
+    Args:
+        db: 数据库会话
+        user_ids: 用户ID列表
+        is_active: 激活状态
+
+    Returns:
+        更新的用户数量
+    """
+    stmt = select(User).where(User.id.in_(user_ids))
+    result = await db.execute(stmt)
+    users = result.scalars().all()
+
+    count = 0
+    for user in users:
+        user.is_active = is_active
+        count += 1
+
+    await db.commit()
+    return count
