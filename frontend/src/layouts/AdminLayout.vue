@@ -24,6 +24,13 @@
             <el-icon><Box /></el-icon>
             <span>模型管理</span>
           </el-menu-item>
+
+          <!-- 返回用户页面 -->
+          <div class="menu-divider"></div>
+          <el-menu-item @click="handleBackToUser" class="back-to-user">
+            <el-icon><Back /></el-icon>
+            <span>返回用户页面</span>
+          </el-menu-item>
         </el-menu>
       </el-scrollbar>
     </el-aside>
@@ -47,7 +54,11 @@
             <el-icon class="avatar-icon"><UserFilled /></el-icon>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="handleLogout">
+                <el-dropdown-item @click="handleBackToUser">
+                  <el-icon><Back /></el-icon>
+                  返回用户页面
+                </el-dropdown-item>
+                <el-dropdown-item @click="handleLogout" divided>
                   <el-icon><SwitchButton /></el-icon>
                   退出登录
                 </el-dropdown-item>
@@ -70,7 +81,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
-import { DataAnalysis, User, Box, UserFilled, SwitchButton } from '@element-plus/icons-vue'
+import { DataAnalysis, User, Box, UserFilled, SwitchButton, Back } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -88,6 +99,12 @@ const breadcrumbTitle = computed(() => {
   }
   return titles[route.path] || ''
 })
+
+// 返回用户页面
+const handleBackToUser = () => {
+  router.push('/')
+  ElMessage.success('已返回用户页面')
+}
 
 // 退出登录
 const handleLogout = async () => {
@@ -138,6 +155,18 @@ const handleLogout = async () => {
 .admin-aside :deep(.el-menu-item:hover) {
   background: #263445;
   color: #fff;
+}
+
+/* 菜单分隔线 */
+.menu-divider {
+  height: 1px;
+  background: #455a6e;
+  margin: 10px 0;
+}
+
+/* 返回用户页面菜单项 */
+.back-to-user {
+  margin-top: auto;
 }
 
 .admin-header {

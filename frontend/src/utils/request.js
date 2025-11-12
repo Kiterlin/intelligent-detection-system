@@ -33,13 +33,19 @@ request.interceptors.response.use(
     console.error('Response error:', error)
 
     if (error.response) {
-      const { status, data } = error.response
+      const { status, data, config } = error.response
 
       // 401 未授权 - token 过期或无效
       if (status === 401) {
-        localStorage.removeItem('access_token')
-        router.push('/login')
-        ElMessage.error('登录已过期，请重新登录')
+        // 如果是登录接口返回401，不需要清除token和跳转，让登录页面处理
+        if (!config.url.includes('/auth/login')) {
+          localStorage.removeItem('access_token')
+          router.push('/login')
+          ElMessage.error('登录已过期，请重新登录')
+        } else {
+          // 登录接口返回401，显示具体错误信息
+          ElMessage.error(data.detail || '用户名或密码错误')
+        }
       }
       // 403 禁止访问 - 权限不足
       else if (status === 403) {

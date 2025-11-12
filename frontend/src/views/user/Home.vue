@@ -11,6 +11,10 @@
           </span>
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item v-if="authStore.isAdmin" command="admin">
+                <el-icon><Setting /></el-icon>
+                管理后台
+              </el-dropdown-item>
               <el-dropdown-item command="profile">个人中心</el-dropdown-item>
               <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
             </el-dropdown-menu>
@@ -44,6 +48,14 @@
 
         <div class="quick-actions">
           <h3>快捷操作</h3>
+          <!-- 管理员专用按钮 -->
+          <el-button
+            v-if="authStore.isAdmin"
+            type="warning"
+            icon="Setting"
+            @click="router.push('/admin/dashboard')"
+            >进入管理后台</el-button
+          >
           <el-button type="primary" icon="Camera" disabled>开始检测</el-button>
           <el-button type="success" icon="Document" disabled>检测历史</el-button>
           <el-button type="info" @click="router.push('/profile')" icon="User"
@@ -60,7 +72,7 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { User, ArrowDown } from '@element-plus/icons-vue'
+import { User, ArrowDown, Setting } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -77,6 +89,8 @@ const handleCommand = (command) => {
     authStore.logout()
   } else if (command === 'profile') {
     router.push('/profile')
+  } else if (command === 'admin') {
+    router.push('/admin/dashboard')
   }
 }
 </script>

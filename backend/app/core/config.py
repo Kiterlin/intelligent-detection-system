@@ -17,8 +17,15 @@ class Settings(BaseSettings):
     # 数据库配置
     DATABASE_URL: str = "sqlite+aiosqlite:///./water_detection.db"
 
-    # Redis配置（第三阶段使用）
+    # Redis配置
     REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Celery配置
+    CELERY_BROKER_URL: str = "redis://localhost:6379/1"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
+    CELERY_TASK_TRACK_STARTED: bool = True
+    CELERY_TASK_TIME_LIMIT: int = 3600  # 1小时任务超时
+    CELERY_RESULT_EXPIRES: int = 86400  # 结果保留24小时
 
     # JWT配置
     SECRET_KEY: str = "your_secret_key_here_please_change_me_in_production"
@@ -30,6 +37,16 @@ class Settings(BaseSettings):
     RESULT_DIR: str = "results"
     MODEL_DIR: str = "models"
     MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500MB
+
+    # 检测配置
+    DETECTION_INPUT_DIR: str = "uploads/detections/input"
+    DETECTION_OUTPUT_DIR: str = "uploads/detections/output"
+    MAX_IMAGE_SIZE: int = 10 * 1024 * 1024  # 10MB
+    MAX_VIDEO_SIZE: int = 200 * 1024 * 1024  # 200MB
+    DEFAULT_CONFIDENCE_THRESHOLD: float = 0.25
+    DEFAULT_IOU_THRESHOLD: float = 0.45
+    SUPPORTED_IMAGE_FORMATS: List[str] = [".jpg", ".jpeg", ".png", ".bmp", ".webp"]
+    SUPPORTED_VIDEO_FORMATS: List[str] = [".mp4", ".avi", ".mov", ".mkv"]
 
     # CORS配置
     BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
