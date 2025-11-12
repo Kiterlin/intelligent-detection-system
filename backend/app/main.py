@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import init_db
+from app.api.v1.router import api_router
 
 # 创建 FastAPI 应用实例
 app = FastAPI(
@@ -71,5 +72,5 @@ async def health_check():
     }
 
 
-# TODO: 在 Stage 3 中添加 API 路由
-# app.include_router(api_router, prefix=settings.API_V1_STR)
+# 注册 API 路由
+app.include_router(api_router, prefix=settings.API_V1_STR)
