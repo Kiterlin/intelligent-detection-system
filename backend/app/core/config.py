@@ -59,6 +59,14 @@ class Settings(BaseSettings):
     # 日志配置
     LOG_LEVEL: str = "INFO"
 
+    # SMTP邮件配置（用于告警通知）
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "noreply@water-detection.com"
+    SMTP_TLS: bool = True
+
     class Config:
         env_file = ".env"
         case_sensitive = True
