@@ -3,7 +3,7 @@ API v1 主路由
 """
 from fastapi import APIRouter
 
-from app.api.v1 import auth, admin, detect, dataset
+from app.api.v1 import auth, admin, detect, dataset, alerts
 
 # 创建 API v1 路由器
 api_router = APIRouter()
@@ -19,3 +19,6 @@ api_router.include_router(detect.router, prefix="/detect", tags=["目标检测"]
 
 # 注册数据集路由
 api_router.include_router(dataset.router, prefix="/datasets", tags=["数据集管理"])
+
+# 注册告警路由
+api_router.include_router(alerts.router, prefix="/alerts", tags=["告警系统"])

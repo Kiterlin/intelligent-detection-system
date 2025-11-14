@@ -23,6 +23,7 @@ from app.crud.dataset import (
 from app.crud.ml_model import get_model_by_id
 from app.services.model_loader import model_loader
 from app.services.detection import DetectionService
+from app.services.alert_integration import check_and_trigger_alerts
 
 
 # 创建异步数据库引擎（用于任务中）
@@ -200,6 +201,19 @@ async def _async_process_single_file(
                 detected_objects_count=len(detections),
                 processing_time=processing_time,
             )
+
+            # 检查并触发告警（不影响批量检测任务）
+            try:
+                alert_stats = await check_and_trigger_alerts(
+                    db=db,
+                    detection_id=detection_id,
+                    user_id=user_id,
+                    result_json=result_json,
+                    dataset_id=file_obj.dataset_id,
+                )
+                logger.info(f"Alert check stats for batch detection {detection_id}: {alert_stats}")
+            except Exception as alert_error:
+                logger.error(f"Alert check failed for batch detection {detection_id}: {alert_error}")
 
             # 更新批量任务进度（成功完成一个文件）
             await update_batch_job_progress(db, job_id, completed_files=1)

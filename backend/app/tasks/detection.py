@@ -19,6 +19,7 @@ from app.crud.detection import (
 from app.crud.ml_model import get_model_by_id
 from app.services.model_loader import model_loader
 from app.services.detection import DetectionService
+from app.services.alert_integration import check_and_trigger_alerts
 
 
 # 创建异步数据库引擎（用于任务中）
@@ -136,6 +137,18 @@ async def _async_process_video_detection(task: Task, detection_id: int):
             logger.info(
                 f"视频检测任务完成 ID={detection_id}, 对象数={len(detections)}, 耗时={processing_time:.2f}s"
             )
+
+            # 检查并触发告警（不影响检测任务）
+            try:
+                alert_stats = await check_and_trigger_alerts(
+                    db=db,
+                    detection_id=detection_id,
+                    user_id=detection_record.user_id,
+                    result_json=result_json,
+                )
+                logger.info(f"Alert check stats for detection {detection_id}: {alert_stats}")
+            except Exception as alert_error:
+                logger.error(f"Alert check failed for detection {detection_id}: {alert_error}")
 
             return {
                 "detection_id": detection_id,
