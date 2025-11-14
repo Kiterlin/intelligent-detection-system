@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "SimHei", "STHeiti", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #1890ff;
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #1890ff;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+        }
+
+        .header .meta {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+
+        .section h2 {
+            color: #1890ff;
+            border-left: 4px solid #1890ff;
+            padding-left: 12px;
+            margin: 20px 0 15px 0;
+            font-size: 20px;
+        }
+
+        .section h3 {
+            color: #333;
+            margin: 15px 0 10px 0;
+            font-size: 16px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #1890ff;
+        }
+
+        .stat-card .label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            color: #1890ff;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .chart {
+            text-align: center;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+
+        .chart img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #1890ff;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e8e8e8;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- 报告头部 -->
+    <div class="header">
+        <h1>{{ title }}</h1>
+        <div class="meta">
+            <p>生成时间: {{ generated_at }}</p>
+            {% if time_range %}
+            <p>时间范围: {{ time_range.start }} 至 {{ time_range.end }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 统计概览 -->
+    <div class="section">
+        <h2>一、统计概览</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">总检测次数</div>
+                <div class="value">{{ data.total_stats.total_detections }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">检测对象总数</div>
+                <div class="value">{{ data.total_stats.total_objects }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">图片检测数</div>
+                <div class="value">{{ data.total_stats.image_count }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">视频检测数</div>
+                <div class="value">{{ data.total_stats.video_count }}</div>
+            </div>
+        </div>
+
+        <table>
+            <tr>
+                <th>指标</th>
+                <th>数值</th>
+            </tr>
+            <tr>
+                <td>平均处理时间</td>
+                <td>{{ data.total_stats.avg_processing_time }} 秒</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 类别分布 -->
+    <div class="section">
+        <h2>二、检测对象类别分布</h2>
+        {% if charts.pie_chart %}
+        <div class="chart">
+            <img src="file://{{ charts.pie_chart }}" alt="类别分布饼图">
+        </div>
+        {% else %}
+        <div class="no-data">暂无类别分布数据</div>
+        {% endif %}
+
+        {% if data.class_distribution %}
+        <h3>类别统计表</h3>
+        <table>
+            <tr>
+                <th>类别</th>
+                <th>数量</th>
+                <th>占比</th>
+            </tr>
+            {% set total = data.class_distribution.values()|sum %}
+            {% for class_name, count in data.class_distribution.items() %}
+            <tr>
+                <td>{{ class_name }}</td>
+                <td>{{ count }}</td>
+                <td>{{ "%.1f" | format((count / total * 100) if total > 0 else 0) }}%</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+    </div>
+
+    <!-- 时间趋势 -->
+    <div class="section">
+        <h2>三、检测时间趋势</h2>
+        {% if charts.line_chart %}
+        <div class="chart">
+            <img src="file://{{ charts.line_chart }}" alt="时间趋势折线图">
+        </div>
+        {% else %}
+        <div class="no-data">暂无时间趋势数据</div>
+        {% endif %}
+    </div>
+
+    <!-- 模型使用情况 -->
+    <div class="section">
+        <h2>四、模型使用情况</h2>
+        {% if charts.bar_chart %}
+        <div class="chart">
+            <img src="file://{{ charts.bar_chart }}" alt="模型使用柱状图">
+        </div>
+        {% endif %}
+
+        {% if data.model_usage %}
+        <table>
+            <tr>
+                <th>模型名称</th>
+                <th>使用次数</th>
+            </tr>
+            {% for model in data.model_usage %}
+            <tr>
+                <td>{{ model.model_name }}</td>
+                <td>{{ model.usage_count }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="no-data">暂无模型使用数据</div>
+        {% endif %}
+    </div>
+
+    <!-- 最近检测记录 -->
+    <div class="section">
+        <h2>五、最近检测记录</h2>
+        {% if data.recent_detections %}
+        <table>
+            <tr>
+                <th>检测ID</th>
+                <th>类型</th>
+                <th>对象数量</th>
+                <th>处理时间(秒)</th>
+                <th>检测时间</th>
+            </tr>
+            {% for detection in data.recent_detections %}
+            <tr>
+                <td>{{ detection.id }}</td>
+                <td>{{ '图片' if detection.input_type == 'image' else '视频' }}</td>
+                <td>{{ detection.detected_objects_count }}</td>
+                <td>{{ "%.2f" | format(detection.processing_time) if detection.processing_time else 'N/A' }}</td>
+                <td>{{ detection.created_at[:19] if detection.created_at else 'N/A' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="no-data">暂无最近检测记录</div>
+        {% endif %}
+    </div>
+
+    <!-- 报告尾部 -->
+    <div class="footer">
+        <p>此报告由水下目标智能检测平台自动生成</p>
+        <p>🤖 Generated with Claude Code</p>
+    </div>
+</body>
+</html>
