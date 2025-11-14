@@ -83,6 +83,19 @@ export function batchUpdateUserStatus(userIds, isActive) {
   })
 }
 
+/**
+ * 重置用户密码（管理员）
+ */
+export function resetUserPassword(userId, newPassword) {
+  return request({
+    url: `/admin/users/${userId}/reset-password`,
+    method: 'post',
+    data: {
+      new_password: newPassword
+    }
+  })
+}
+
 // ==================== 模型管理 ====================
 
 /**
@@ -155,17 +168,11 @@ export function deleteModel(id) {
 // ==================== Dashboard统计 ====================
 
 /**
- * 获取Dashboard统计数据
+ * 获取Dashboard统计数据（真实后端API）
  */
 export function getDashboardStats() {
-  // 这里返回模拟数据，实际项目中应该从后端API获取
-  return Promise.resolve({
-    data: {
-      userCount: 0,
-      modelCount: 0,
-      todayDetections: 0,
-      detectionTrend: [],
-      modelUsage: []
-    }
+  return request({
+    url: '/admin/stats/dashboard',
+    method: 'get'
   })
 }

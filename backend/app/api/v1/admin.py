@@ -2,13 +2,18 @@
 管理员 API 路由
 提供用户管理和模型管理功能
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from datetime import datetime, timedelta
+from typing import List, Dict, Any
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.api.deps import require_admin
 from app.models.user import User, UserRole
-from app.models.ml_model import ModelStatus
+from app.models.ml_model import ModelStatus, MLModel
+from app.models.detection_history import DetectionHistory, DetectionStatus
 from app.schemas.user import (
     AdminUserCreate,
     UserResponse,
@@ -16,6 +21,7 @@ from app.schemas.user import (
     UserListResponse,
     BatchUserOperation,
     BatchUpdateStatus,
+    PasswordReset,
 )
 from app.schemas.ml_model import (
     ModelUpload,
@@ -29,6 +35,17 @@ from app.crud import ml_model as model_crud
 from app.utils.file import save_upload_file, ALLOWED_MODEL_EXTENSIONS, MAX_FILE_SIZE
 
 router = APIRouter()
+
+
+# Dashboard统计响应模型
+class DashboardStats(BaseModel):
+    """Dashboard统计数据"""
+    user_count: int
+    model_count: int
+    total_detections: int
+    today_detections: int
+    detection_trend: List[Dict[str, Any]]  # 最近7天检测趋势
+    model_usage: List[Dict[str, Any]]  # 模型使用统计
 
 
 @router.get("/users", response_model=UserListResponse)
@@ -162,6 +179,33 @@ async def delete_user(
         )
 
 
+@router.post("/users/{user_id}/reset-password", response_model=dict)
+async def reset_user_password(
+    user_id: int,
+    password_data: PasswordReset,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """
+    重置用户密码（管理员专用）
+
+    需要管理员权限
+    管理员可以直接为任何用户设置新密码，无需验证旧密码
+    """
+    # 验证目标用户是否存在
+    user = await user_crud.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在",
+        )
+
+    # 更新密码
+    await user_crud.update_password(db, user_id, password_data.new_password)
+
+    return {"message": f"已成功重置用户 {user.username} 的密码"}
+
+
 @router.post("/users/batch/delete")
 async def batch_delete_users(
     batch_op: BatchUserOperation,
@@ -221,9 +265,9 @@ async def batch_update_status(
 @router.post("/models/upload", response_model=ModelResponse, status_code=status.HTTP_201_CREATED)
 async def upload_model(
     file: UploadFile = File(..., description="模型文件（.pt或.pth格式）"),
-    name: str = Query(..., description="模型名称"),
-    version: str = Query(None, description="模型版本"),
-    description: str = Query(None, description="模型描述"),
+    name: str = Form(..., description="模型名称"),
+    version: str = Form(None, description="模型版本"),
+    description: str = Form(None, description="模型描述"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -384,3 +428,82 @@ async def delete_model(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="模型不存在",
         )
+
+
+@router.get("/stats/dashboard", response_model=DashboardStats)
+async def get_dashboard_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """
+    获取Dashboard统计数据
+
+    返回用户、模型、检测统计以及趋势数据
+    需要管理员权限
+    """
+    # 1. 用户总数
+    user_count_result = await db.scalar(select(func.count(User.id)))
+    user_count = user_count_result or 0
+
+    # 2. 模型总数
+    model_count_result = await db.scalar(select(func.count(MLModel.id)))
+    model_count = model_count_result or 0
+
+    # 3. 总检测数
+    total_detections_result = await db.scalar(select(func.count(DetectionHistory.id)))
+    total_detections = total_detections_result or 0
+
+    # 4. 今日检测数
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_detections_result = await db.scalar(
+        select(func.count(DetectionHistory.id)).where(
+            DetectionHistory.created_at >= today_start
+        )
+    )
+    today_detections = today_detections_result or 0
+
+    # 5. 最近7天检测趋势
+    detection_trend = []
+    for i in range(6, -1, -1):
+        day_start = (datetime.now() - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+
+        count_result = await db.scalar(
+            select(func.count(DetectionHistory.id)).where(
+                DetectionHistory.created_at >= day_start,
+                DetectionHistory.created_at < day_end
+            )
+        )
+        count = count_result or 0
+
+        detection_trend.append({
+            "date": day_start.strftime("%Y-%m-%d"),
+            "count": count
+        })
+
+    # 6. 模型使用统计（前5个最常用的模型）
+    model_usage_query = (
+        select(
+            MLModel.name,
+            func.count(DetectionHistory.id).label("usage_count")
+        )
+        .join(DetectionHistory, MLModel.id == DetectionHistory.model_id)
+        .group_by(MLModel.id, MLModel.name)
+        .order_by(func.count(DetectionHistory.id).desc())
+        .limit(5)
+    )
+
+    model_usage_results = await db.execute(model_usage_query)
+    model_usage = [
+        {"name": row.name, "count": row.usage_count}
+        for row in model_usage_results
+    ]
+
+    return DashboardStats(
+        user_count=user_count,
+        model_count=model_count,
+        total_detections=total_detections,
+        today_detections=today_detections,
+        detection_trend=detection_trend,
+        model_usage=model_usage
+    )

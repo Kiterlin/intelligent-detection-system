@@ -7,8 +7,9 @@ from sqlalchemy import select, func, or_, delete
 from sqlalchemy.exc import IntegrityError
 
 from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user import UserCreate, UserUpdate, ProfileUpdate
 from app.core.security import get_password_hash
+from app.core.cache import cache_manager, CacheKeys, invalidate_user_cache, invalidate_admin_stats_cache
 
 
 async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
@@ -22,8 +23,30 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
     Returns:
         Optional[User]: 用户对象，不存在则返回 None
     """
+    # 尝试从缓存获取
+    cache_key = CacheKeys.user_info(user_id)
+    cached_user = await cache_manager.get(cache_key)
+    if cached_user:
+        # 从缓存数据重建 User 对象（简化版，只返回基本信息）
+        # 注意：实际使用时仍需从数据库获取完整对象
+        pass
+
     result = await db.execute(select(User).where(User.id == user_id))
-    return result.scalar_one_or_none()
+    user = result.scalar_one_or_none()
+
+    # 缓存用户信息
+    if user:
+        user_dict = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role.value,
+            "is_active": user.is_active,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+        }
+        await cache_manager.set(cache_key, user_dict, ttl=CacheKeys.TTL_USER_INFO)
+
+    return user
 
 
 async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User]:
@@ -93,6 +116,8 @@ async def create_user(db: AsyncSession, user_in: UserCreate, role: UserRole = Us
     try:
         await db.commit()
         await db.refresh(db_user)
+        # 使管理后台统计缓存失效（用户数量变化）
+        await invalidate_admin_stats_cache()
         return db_user
     except IntegrityError:
         await db.rollback()
@@ -122,6 +147,8 @@ async def update_user(db: AsyncSession, user_id: int, user_in: UserUpdate) -> Op
 
     await db.commit()
     await db.refresh(user)
+    # 使用户缓存失效
+    await invalidate_user_cache(user_id)
     return user
 
 
@@ -144,6 +171,8 @@ async def update_password(db: AsyncSession, user_id: int, new_password: str) -> 
     user.hashed_password = get_password_hash(new_password)
     await db.commit()
     await db.refresh(user)
+    # 使用户缓存失效
+    await invalidate_user_cache(user_id)
     return user
 
 
@@ -164,6 +193,9 @@ async def delete_user(db: AsyncSession, user_id: int) -> bool:
 
     await db.delete(user)
     await db.commit()
+    # 使用户缓存和管理统计失效
+    await invalidate_user_cache(user_id)
+    await invalidate_admin_stats_cache()
     return True
 
 
@@ -206,6 +238,7 @@ async def get_users_with_filter(
         (用户列表, 总数) 元组
     """
     query = select(User)
+    filters = []
 
     # 搜索条件
     if search:
@@ -213,17 +246,24 @@ async def get_users_with_filter(
             User.username.ilike(f"%{search}%"),
             User.email.ilike(f"%{search}%")
         )
-        query = query.where(search_filter)
+        filters.append(search_filter)
 
     # 角色筛选
     if role:
-        query = query.where(User.role == role)
+        filters.append(User.role == role)
 
-    # 获取总数
-    count_query = select(func.count()).select_from(query.subquery())
+    # 应用筛选条件
+    if filters:
+        from sqlalchemy import and_
+        query = query.where(and_(*filters))
+
+    # 获取总数 - 使用优化的计数查询
+    count_query = select(func.count(User.id))
+    if filters:
+        count_query = count_query.where(and_(*filters))
     total = await db.scalar(count_query)
 
-    # 分页查询
+    # 分页查询 - 按创建时间倒序排序
     query = query.offset(skip).limit(limit).order_by(User.created_at.desc())
     result = await db.execute(query)
     users = list(result.scalars().all())
@@ -274,3 +314,64 @@ async def batch_update_user_status(
 
     await db.commit()
     return count
+
+
+async def update_profile(db: AsyncSession, user_id: int, profile_in: ProfileUpdate) -> Optional[User]:
+    """
+    更新用户个人信息
+
+    Args:
+        db: 数据库会话
+        user_id: 用户 ID
+        profile_in: 个人信息更新数据
+
+    Returns:
+        Optional[User]: 更新后的用户对象，不存在则返回 None
+
+    Raises:
+        ValueError: 邮箱已被使用
+    """
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        return None
+
+    # 如果要更新邮箱，检查邮箱是否被其他用户使用
+    if profile_in.email and profile_in.email != user.email:
+        existing_user = await get_user_by_email(db, profile_in.email)
+        if existing_user and existing_user.id != user_id:
+            raise ValueError("邮箱已被其他用户使用")
+
+    # 更新字段（排除未设置的字段）
+    update_data = profile_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(user, field, value)
+
+    await db.commit()
+    await db.refresh(user)
+    # 使用户缓存失效
+    await invalidate_user_cache(user_id)
+    return user
+
+
+async def update_avatar(db: AsyncSession, user_id: int, avatar_url: str) -> Optional[User]:
+    """
+    更新用户头像
+
+    Args:
+        db: 数据库会话
+        user_id: 用户 ID
+        avatar_url: 头像 URL
+
+    Returns:
+        Optional[User]: 更新后的用户对象，不存在则返回 None
+    """
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        return None
+
+    user.avatar_url = avatar_url
+    await db.commit()
+    await db.refresh(user)
+    # 使用户缓存失效
+    await invalidate_user_cache(user_id)
+    return user

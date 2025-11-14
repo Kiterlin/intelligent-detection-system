@@ -26,6 +26,13 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     role = Column(SQLEnum(UserRole), default=UserRole.USER, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+
+    # 个人信息字段
+    avatar_url = Column(String(255), nullable=True, comment="头像URL")
+    nickname = Column(String(50), nullable=True, comment="昵称/真实姓名")
+    bio = Column(String(500), nullable=True, comment="个人简介")
+    phone = Column(String(20), nullable=True, comment="联系电话")
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False

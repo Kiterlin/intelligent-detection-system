@@ -324,4 +324,9 @@ class DetectionService:
         Returns:
             JSON字符串
         """
-        return json.dumps(detections, ensure_ascii=False)
+        # 包装为标准格式
+        result = {
+            "detections": detections,
+            "count": len(detections)
+        }
+        return json.dumps(result, ensure_ascii=False)

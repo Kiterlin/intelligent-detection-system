@@ -79,30 +79,37 @@ async def get_detections_with_filter(
         (检测记录列表, 总数) 元组
     """
     query = select(DetectionHistory)
+    filters = []
 
     # 用户筛选
     if user_id:
-        query = query.where(DetectionHistory.user_id == user_id)
+        filters.append(DetectionHistory.user_id == user_id)
 
     # 输入类型筛选
     if input_type:
-        query = query.where(DetectionHistory.input_type == input_type)
+        filters.append(DetectionHistory.input_type == input_type)
 
     # 状态筛选
     if status:
-        query = query.where(DetectionHistory.status == status)
+        filters.append(DetectionHistory.status == status)
 
     # 日期范围筛选
     if start_date:
-        query = query.where(DetectionHistory.created_at >= start_date)
+        filters.append(DetectionHistory.created_at >= start_date)
     if end_date:
-        query = query.where(DetectionHistory.created_at <= end_date)
+        filters.append(DetectionHistory.created_at <= end_date)
 
-    # 获取总数
-    count_query = select(func.count()).select_from(query.subquery())
+    # 应用筛选条件
+    if filters:
+        query = query.where(and_(*filters))
+
+    # 获取总数 - 使用优化的计数查询
+    count_query = select(func.count(DetectionHistory.id))
+    if filters:
+        count_query = count_query.where(and_(*filters))
     total = await db.scalar(count_query)
 
-    # 分页查询
+    # 分页查询 - 按创建时间倒序排序（利用索引）
     query = query.offset(skip).limit(limit).order_by(DetectionHistory.created_at.desc())
     result = await db.execute(query)
     detections = list(result.scalars().all())
@@ -311,4 +318,132 @@ async def get_user_detection_stats(
         "video_detections": video_count or 0,
         "total_objects_detected": int(total_objects or 0),
         "avg_processing_time": float(avg_time) if avg_time else None,
+    }
+
+
+async def get_dashboard_stats(
+    db: AsyncSession, user_id: int
+) -> dict:
+    """
+    获取用户仪表盘统计信息
+
+    包含总检测数、本周检测数、总对象数、最常检测类别、模型使用情况、最近活动
+
+    Args:
+        db: 数据库会话
+        user_id: 用户ID
+
+    Returns:
+        dict: 仪表盘统计信息
+    """
+    import json
+    from datetime import timedelta
+
+    # 当前时间
+    now = datetime.now()
+    week_ago = now - timedelta(days=7)
+
+    # 1. 总检测次数
+    total_detections = await db.scalar(
+        select(func.count(DetectionHistory.id)).where(
+            DetectionHistory.user_id == user_id
+        )
+    ) or 0
+
+    # 2. 本周检测次数（视频）
+    weekly_videos = await db.scalar(
+        select(func.count(DetectionHistory.id)).where(
+            and_(
+                DetectionHistory.user_id == user_id,
+                DetectionHistory.input_type == DetectionInputType.VIDEO,
+                DetectionHistory.created_at >= week_ago
+            )
+        )
+    ) or 0
+
+    # 3. 总对象数
+    total_objects = await db.scalar(
+        select(func.sum(DetectionHistory.detected_objects_count)).where(
+            DetectionHistory.user_id == user_id
+        )
+    ) or 0
+
+    # 4. 最常检测类别（从所有result_json中统计）
+    result = await db.execute(
+        select(DetectionHistory.result_json).where(
+            and_(
+                DetectionHistory.user_id == user_id,
+                DetectionHistory.status == DetectionStatus.COMPLETED,
+                DetectionHistory.result_json.isnot(None)
+            )
+        )
+    )
+
+    class_counts = {}
+    for row in result:
+        if row[0]:
+            try:
+                result_data = json.loads(row[0])
+                # 兼容新旧格式
+                if isinstance(result_data, dict):
+                    detections = result_data.get("detections", [])
+                elif isinstance(result_data, list):
+                    detections = result_data
+                else:
+                    detections = []
+
+                for det in detections:
+                    class_name = det.get('class_name', det.get('class', 'Unknown'))
+                    class_counts[class_name] = class_counts.get(class_name, 0) + 1
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+    most_detected_class = max(class_counts.items(), key=lambda x: x[1])[0] if class_counts else "无"
+
+    # 5. 模型使用统计
+    from app.models.ml_model import MLModel
+    model_usage_result = await db.execute(
+        select(
+            MLModel.name,
+            func.count(DetectionHistory.id).label('count')
+        ).join(
+            DetectionHistory, DetectionHistory.model_id == MLModel.id
+        ).where(
+            DetectionHistory.user_id == user_id
+        ).group_by(
+            MLModel.id, MLModel.name
+        )
+    )
+
+    model_usage = [
+        {"model_name": row.name, "count": row.count}
+        for row in model_usage_result
+    ]
+
+    # 6. 最近5条检测活动
+    recent_result = await db.execute(
+        select(DetectionHistory).where(
+            DetectionHistory.user_id == user_id
+        ).order_by(
+            DetectionHistory.created_at.desc()
+        ).limit(5)
+    )
+
+    recent_activities = []
+    for detection in recent_result.scalars():
+        recent_activities.append({
+            "id": detection.id,
+            "input_type": detection.input_type.value,
+            "status": detection.status.value,
+            "detected_count": detection.detected_objects_count or 0,
+            "created_at": detection.created_at.isoformat(),
+        })
+
+    return {
+        "total_detections": int(total_detections),
+        "weekly_videos": int(weekly_videos),
+        "total_objects": int(total_objects),
+        "most_detected_class": most_detected_class,
+        "model_usage": model_usage,
+        "recent_activities": recent_activities,
     }

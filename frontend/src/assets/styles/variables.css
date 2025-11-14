@@ -1,0 +1,156 @@
+/**
+ * Design System Variables
+ * 深海科技主题 - 设计系统变量
+ */
+
+:root {
+  /* ========== 颜色系统 ========== */
+
+  /* 主色调 - 深海蓝 */
+  --color-primary: #0A2E5B;
+  --color-primary-light: #336397;
+  --color-primary-lighter: #668AB1;
+  --color-primary-dark: #082549;
+  --color-primary-darker: #061C37;
+
+  /* 强调色 - 珊瑚橙 */
+  --color-accent-orange: #FF7F50;
+  --color-accent-orange-light: #FFA383;
+  --color-accent-orange-dark: #FF5C2B;
+
+  /* 强调色 - 亮青色 */
+  --color-accent-cyan: #00BFFF;
+  --color-accent-cyan-light: #33BFFF;
+  --color-accent-cyan-dark: #0099CC;
+
+  /* 中性色 */
+  --color-white: #FFFFFF;
+  --color-light-gray: #F4F7FA;
+  --color-gray-100: #F8F9FA;
+  --color-gray-200: #E9ECEF;
+  --color-gray-300: #DEE2E6;
+  --color-gray-400: #CED4DA;
+  --color-gray-500: #ADB5BD;
+  --color-gray-600: #6C757D;
+  --color-gray-700: #495057;
+  --color-gray-800: #343A40;
+  --color-gray-900: #212529;
+  --color-dark-gray: #34495E;
+
+  /* 语义色 */
+  --color-success: #52C41A;
+  --color-warning: #FAAD14;
+  --color-error: #F5222D;
+  --color-info: #1890FF;
+
+  /* 渐变色 */
+  --gradient-deep: linear-gradient(135deg, #0A2E5B 0%, #082549 50%, #061C37 100%);
+  --gradient-ocean: linear-gradient(135deg, #0A2E5B 0%, #00BFFF 100%);
+  --gradient-sunset: linear-gradient(135deg, #FF7F50 0%, #FF5C2B 100%);
+  --gradient-light: linear-gradient(135deg, #F4F7FA 0%, #FFFFFF 100%);
+
+  /* ========== 字体系统 ========== */
+
+  /* 字体族 */
+  --font-family-base: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --font-family-mono: 'Fira Code', 'Courier New', monospace;
+
+  /* 字体大小 */
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-base: 1rem;     /* 16px */
+  --font-size-lg: 1.125rem;   /* 18px */
+  --font-size-xl: 1.25rem;    /* 20px */
+  --font-size-2xl: 1.5rem;    /* 24px */
+  --font-size-3xl: 1.875rem;  /* 30px */
+  --font-size-4xl: 2.25rem;   /* 36px */
+  --font-size-5xl: 3rem;      /* 48px */
+
+  /* 字体粗细 */
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* 行高 */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  --line-height-loose: 2;
+
+  /* ========== 间距系统 ========== */
+  --spacing-0: 0;
+  --spacing-1: 0.25rem;   /* 4px */
+  --spacing-2: 0.5rem;    /* 8px */
+  --spacing-3: 0.75rem;   /* 12px */
+  --spacing-4: 1rem;      /* 16px */
+  --spacing-5: 1.25rem;   /* 20px */
+  --spacing-6: 1.5rem;    /* 24px */
+  --spacing-8: 2rem;      /* 32px */
+  --spacing-10: 2.5rem;   /* 40px */
+  --spacing-12: 3rem;     /* 48px */
+  --spacing-16: 4rem;     /* 64px */
+  --spacing-20: 5rem;     /* 80px */
+  --spacing-24: 6rem;     /* 96px */
+
+  /* ========== 圆角系统 ========== */
+  --radius-none: 0;
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius-base: 0.5rem;  /* 8px */
+  --radius-md: 0.75rem;   /* 12px */
+  --radius-lg: 1rem;      /* 16px */
+  --radius-xl: 1.5rem;    /* 24px */
+  --radius-2xl: 2rem;     /* 32px */
+  --radius-full: 9999px;
+
+  /* ========== 阴影系统 ========== */
+  --shadow-xs: 0 1px 2px rgba(10, 46, 91, 0.05);
+  --shadow-sm: 0 2px 4px rgba(10, 46, 91, 0.06);
+  --shadow-base: 0 2px 12px rgba(10, 46, 91, 0.08);
+  --shadow-md: 0 4px 20px rgba(10, 46, 91, 0.12);
+  --shadow-lg: 0 8px 32px rgba(10, 46, 91, 0.16);
+  --shadow-xl: 0 12px 48px rgba(10, 46, 91, 0.20);
+  --shadow-glow-cyan: 0 0 20px rgba(0, 191, 255, 0.3);
+  --shadow-glow-orange: 0 0 20px rgba(255, 127, 80, 0.3);
+  --shadow-inner: inset 0 2px 4px rgba(10, 46, 91, 0.06);
+
+  /* ========== 过渡时长 ========== */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-medium: 300ms;
+  --duration-slow: 500ms;
+  --duration-slower: 700ms;
+
+  /* ========== 过渡曲线 ========== */
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* ========== Z-index 层级 ========== */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+
+  /* ========== 断点 ========== */
+  --breakpoint-xs: 320px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  /* ========== 容器宽度 ========== */
+  --container-xs: 480px;
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+}

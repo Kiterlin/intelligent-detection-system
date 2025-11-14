@@ -15,7 +15,7 @@ from app.core.config import settings
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.models.detection_history import DetectionInputType, DetectionStatus
-from app.crud.ml_model import get_active_model
+from app.crud.ml_model import get_active_model, get_models_with_filter
 from app.crud.detection import (
     create_detection,
     update_detection_result,
@@ -25,6 +25,7 @@ from app.crud.detection import (
     get_detections_with_filter,
     delete_detection,
     get_user_detection_stats,
+    get_dashboard_stats,
 )
 from app.schemas.detection import (
     ImageDetectionResponse,
@@ -34,11 +35,15 @@ from app.schemas.detection import (
     DetectionHistoryResponse,
     DetectionHistoryListResponse,
     DetectionStatsResponse,
+    DashboardStatsResponse,
 )
+from app.schemas.ml_model import ModelListResponse
+from app.models.ml_model import ModelStatus
 from app.services.model_loader import model_loader
 from app.services.detection import DetectionService
 from app.tasks.detection import process_video_detection
 from app.celery_app import celery_app
+from app.core.cache import cache_manager, CacheKeys, invalidate_user_cache
 from loguru import logger
 
 router = APIRouter()
@@ -129,6 +134,7 @@ async def _save_uploaded_file(file: UploadFile, user_id: int, prefix: str) -> st
 @router.post("/image", response_model=ImageDetectionResponse)
 async def detect_image(
     file: UploadFile = File(..., description="要检测的图像文件"),
+    model_id: Optional[int] = Form(None, description="模型ID（可选，不指定则使用激活模型）"),
     confidence_threshold: float = Form(
         settings.DEFAULT_CONFIDENCE_THRESHOLD,
         ge=0.0,
@@ -149,13 +155,29 @@ async def detect_image(
     # 验证文件
     _validate_image_file(file)
 
-    # 获取激活的模型
-    active_model = await get_active_model(db)
-    if not active_model:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="当前没有激活的检测模型，请联系管理员",
-        )
+    # 获取模型
+    if model_id:
+        # 使用指定的模型
+        from app.crud.ml_model import get_model_by_id
+        active_model = await get_model_by_id(db, model_id)
+        if not active_model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="指定的模型不存在",
+            )
+        if active_model.status != ModelStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="指定的模型未激活",
+            )
+    else:
+        # 获取激活的模型
+        active_model = await get_active_model(db)
+        if not active_model:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="当前没有激活的检测模型，请联系管理员",
+            )
 
     try:
         # 保存上传的图像
@@ -211,6 +233,9 @@ async def detect_image(
             processing_time=processing_time,
         )
 
+        # 使用户缓存失效（包括仪表盘数据）
+        await invalidate_user_cache(current_user.id)
+
         logger.info(
             f"图像检测完成 ID={detection_record.id}, 对象数={len(detections)}, 耗时={processing_time:.2f}s"
         )
@@ -222,8 +247,11 @@ async def detect_image(
             detection_id=detection_record.id,
             objects=detection_objects,
             detected_count=len(detections),
+            detected_objects_count=len(detections),
             processing_time=processing_time,
             output_file_path=str(output_path),
+            confidence_threshold=confidence_threshold,
+            iou_threshold=iou_threshold,
         )
 
     except FileNotFoundError as e:
@@ -257,6 +285,7 @@ async def detect_image(
 @router.post("/video", response_model=VideoDetectionResponse)
 async def detect_video(
     file: UploadFile = File(..., description="要检测的视频文件"),
+    model_id: Optional[int] = Form(None, description="模型ID（可选，不指定则使用激活模型）"),
     confidence_threshold: float = Form(
         settings.DEFAULT_CONFIDENCE_THRESHOLD,
         ge=0.0,
@@ -277,13 +306,29 @@ async def detect_video(
     # 验证文件
     _validate_video_file(file)
 
-    # 获取激活的模型
-    active_model = await get_active_model(db)
-    if not active_model:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="当前没有激活的检测模型，请联系管理员",
-        )
+    # 获取模型
+    if model_id:
+        # 使用指定的模型
+        from app.crud.ml_model import get_model_by_id
+        active_model = await get_model_by_id(db, model_id)
+        if not active_model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="指定的模型不存在",
+            )
+        if active_model.status != ModelStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="指定的模型未激活",
+            )
+    else:
+        # 获取激活的模型
+        active_model = await get_active_model(db)
+        if not active_model:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="当前没有激活的检测模型，请联系管理员",
+            )
 
     try:
         # 保存上传的视频
@@ -523,14 +568,14 @@ async def delete_detection_record(
         )
 
 
-@router.get("/download/{detection_id}")
-async def download_result(
+@router.get("/download/{detection_id}/result")
+async def download_result_file(
     detection_id: int,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    下载检测结果文件
+    下载检测结果文件（图片/视频）
 
     下载指定检测记录的输出文件（标注后的图像或视频）
     """
@@ -564,11 +609,288 @@ async def download_result(
 
     # 返回文件
     filename = Path(detection.output_file_path).name
+
+    # 根据文件扩展名确定 MIME 类型
+    file_ext = Path(detection.output_file_path).suffix.lower()
+    media_type_map = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.bmp': 'image/bmp',
+        '.mp4': 'video/mp4',
+        '.avi': 'video/x-msvideo',
+        '.mov': 'video/quicktime',
+    }
+    media_type = media_type_map.get(file_ext, 'application/octet-stream')
+
     return FileResponse(
         path=detection.output_file_path,
         filename=filename,
-        media_type="application/octet-stream",
+        media_type=media_type,
     )
+
+
+@router.get("/download/{detection_id}/report")
+async def download_report(
+    detection_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    下载检测报告（TXT文档）
+
+    生成并下载包含检测详细信息的文本报告
+    """
+    detection = await get_detection_by_id(db, detection_id)
+
+    if not detection:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="检测记录不存在",
+        )
+
+    # 验证用户权限
+    if detection.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权访问此检测记录",
+        )
+
+    # 生成报告内容
+    import json
+
+    report_lines = [
+        "=" * 60,
+        "水下目标检测报告",
+        "=" * 60,
+        "",
+        "【基本信息】",
+        f"检测ID: {detection.id}",
+        f"用户ID: {detection.user_id}",
+        f"检测类型: {'图片检测' if detection.input_type == DetectionInputType.IMAGE else '视频检测'}",
+        f"检测状态: {detection.status}",
+        f"创建时间: {detection.created_at.strftime('%Y-%m-%d %H:%M:%S')}",
+        "",
+        "【检测参数】",
+        f"使用模型ID: {detection.model_id}",
+        f"置信度阈值: {detection.confidence_threshold}",
+        f"IOU阈值: {detection.iou_threshold}",
+        "",
+        "【检测结果】",
+        f"检测对象数量: {detection.detected_objects_count}",
+        f"处理时间: {detection.processing_time:.2f} 秒" if detection.processing_time else "处理时间: -",
+        "",
+    ]
+
+    # 添加检测对象详情
+    if detection.result_json:
+        try:
+            result_data = json.loads(detection.result_json)
+
+            # 兼容新旧格式
+            # 新格式: {"detections": [...], "count": N}
+            # 旧格式: [...]
+            if isinstance(result_data, dict):
+                detections = result_data.get("detections", [])
+            elif isinstance(result_data, list):
+                detections = result_data
+            else:
+                detections = []
+
+            if detections:
+                report_lines.append("【检测对象详情】")
+                report_lines.append("-" * 60)
+                for i, obj in enumerate(detections, 1):
+                    report_lines.append(f"\n对象 #{i}:")
+                    report_lines.append(f"  类别: {obj.get('class_name', obj.get('class', 'Unknown'))}")
+                    report_lines.append(f"  置信度: {obj.get('confidence', 0) * 100:.2f}%")
+                    bbox = obj.get('bbox', [])
+                    if bbox:
+                        report_lines.append(f"  边界框坐标: [{', '.join(f'{x:.1f}' for x in bbox)}]")
+                report_lines.append("-" * 60)
+        except Exception as e:
+            logger.error(f"解析检测结果JSON失败: {str(e)}")
+            report_lines.append("无法解析检测对象详情")
+
+    # 添加文件信息
+    report_lines.extend([
+        "",
+        "【文件信息】",
+        f"输入文件: {Path(detection.input_file_path).name}",
+        f"输出文件: {Path(detection.output_file_path).name if detection.output_file_path else '无'}",
+    ])
+
+    # 错误信息
+    if detection.error_message:
+        report_lines.extend([
+            "",
+            "【错误信息】",
+            detection.error_message,
+        ])
+
+    report_lines.extend([
+        "",
+        "=" * 60,
+        "报告生成时间: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "=" * 60,
+    ])
+
+    # 生成文件
+    report_content = "\n".join(report_lines)
+
+    # 创建临时文件
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False, suffix='.txt') as f:
+        f.write(report_content)
+        temp_path = f.name
+
+    # 返回文件
+    filename = f"detection_report_{detection.id}.txt"
+
+    # 使用自定义响应来确保文件被删除
+    import atexit
+    atexit.register(lambda: os.path.exists(temp_path) and os.remove(temp_path))
+
+    return FileResponse(
+        path=temp_path,
+        filename=filename,
+        media_type="text/plain; charset=utf-8",
+    )
+
+
+@router.get("/download/{detection_id}/all")
+async def download_all(
+    detection_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    下载全部（ZIP压缩包）
+
+    打包下载结果文件和检测报告
+    """
+    detection = await get_detection_by_id(db, detection_id)
+
+    if not detection:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="检测记录不存在",
+        )
+
+    # 验证用户权限
+    if detection.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权访问此检测记录",
+        )
+
+    # 检查输出文件是否存在
+    if not detection.output_file_path or not os.path.exists(detection.output_file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="输出文件不存在",
+        )
+
+    import tempfile
+    import zipfile
+    import json
+
+    # 生成报告内容（复用上面的逻辑）
+    report_lines = [
+        "=" * 60,
+        "水下目标检测报告",
+        "=" * 60,
+        "",
+        "【基本信息】",
+        f"检测ID: {detection.id}",
+        f"用户ID: {detection.user_id}",
+        f"检测类型: {'图片检测' if detection.input_type == DetectionInputType.IMAGE else '视频检测'}",
+        f"检测状态: {detection.status}",
+        f"创建时间: {detection.created_at.strftime('%Y-%m-%d %H:%M:%S')}",
+        "",
+        "【检测参数】",
+        f"使用模型ID: {detection.model_id}",
+        f"置信度阈值: {detection.confidence_threshold}",
+        f"IOU阈值: {detection.iou_threshold}",
+        "",
+        "【检测结果】",
+        f"检测对象数量: {detection.detected_objects_count}",
+        f"处理时间: {detection.processing_time:.2f} 秒" if detection.processing_time else "处理时间: -",
+        "",
+    ]
+
+    if detection.result_json:
+        try:
+            result_data = json.loads(detection.result_json)
+
+            # 兼容新旧格式
+            if isinstance(result_data, dict):
+                detections = result_data.get("detections", [])
+            elif isinstance(result_data, list):
+                detections = result_data
+            else:
+                detections = []
+
+            if detections:
+                report_lines.append("【检测对象详情】")
+                report_lines.append("-" * 60)
+                for i, obj in enumerate(detections, 1):
+                    report_lines.append(f"\n对象 #{i}:")
+                    report_lines.append(f"  类别: {obj.get('class_name', obj.get('class', 'Unknown'))}")
+                    report_lines.append(f"  置信度: {obj.get('confidence', 0) * 100:.2f}%")
+                    bbox = obj.get('bbox', [])
+                    if bbox:
+                        report_lines.append(f"  边界框坐标: [{', '.join(f'{x:.1f}' for x in bbox)}]")
+                report_lines.append("-" * 60)
+        except Exception as e:
+            logger.error(f"解析检测结果JSON失败: {str(e)}")
+
+    report_lines.extend([
+        "",
+        "【文件信息】",
+        f"输入文件: {Path(detection.input_file_path).name}",
+        f"输出文件: {Path(detection.output_file_path).name}",
+        "",
+        "=" * 60,
+        "报告生成时间: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "=" * 60,
+    ])
+
+    report_content = "\n".join(report_lines)
+
+    # 创建临时ZIP文件
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_zip:
+        zip_path = temp_zip.name
+
+    try:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # 添加结果文件
+            result_filename = Path(detection.output_file_path).name
+            zipf.write(detection.output_file_path, result_filename)
+
+            # 添加报告文件
+            report_filename = f"detection_report_{detection.id}.txt"
+            zipf.writestr(report_filename, report_content.encode('utf-8'))
+
+        # 返回ZIP文件
+        filename = f"detection_{detection.id}_complete.zip"
+
+        import atexit
+        atexit.register(lambda: os.path.exists(zip_path) and os.remove(zip_path))
+
+        return FileResponse(
+            path=zip_path,
+            filename=filename,
+            media_type="application/zip",
+        )
+    except Exception as e:
+        # 清理临时文件
+        if os.path.exists(zip_path):
+            os.remove(zip_path)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"生成压缩包失败: {str(e)}",
+        )
 
 
 @router.get("/stats", response_model=DetectionStatsResponse)
@@ -590,4 +912,84 @@ async def get_detection_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"获取统计失败: {str(e)}",
+        )
+
+
+@router.get("/models", response_model=ModelListResponse)
+async def get_available_models(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取可用的检测模型列表
+
+    普通用户可以访问此端点获取所有激活状态的模型
+    用于检测页面的模型选择
+    """
+    try:
+        # 获取所有激活状态的模型
+        models, total = await get_models_with_filter(
+            db=db,
+            skip=0,
+            limit=100,
+            status=ModelStatus.ACTIVE,
+        )
+
+        # 将 ORM 对象转换为 Pydantic 模型
+        from app.schemas.ml_model import ModelResponse
+        model_responses = [ModelResponse.model_validate(model) for model in models]
+
+        return ModelListResponse(
+            models=model_responses,
+            total=total,
+            page=1,
+            page_size=100,
+        )
+
+    except Exception as e:
+        logger.error(f"获取模型列表失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取模型列表失败: {str(e)}",
+        )
+
+
+@router.get("/dashboard", response_model=DashboardStatsResponse)
+async def get_dashboard(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取用户仪表盘统计信息
+
+    包含总检测数、本周视频数、总对象数、最常检测类别、模型使用情况、最近活动
+    数据会被缓存2分钟以提升性能
+    """
+    try:
+        # 尝试从缓存获取
+        cache_key = CacheKeys.user_stats(current_user.id) + ":dashboard"
+        cached_data = await cache_manager.get(cache_key)
+
+        if cached_data:
+            logger.info(f"从缓存获取仪表盘数据 user_id={current_user.id}")
+            return DashboardStatsResponse(**cached_data)
+
+        # 从数据库获取统计数据
+        stats = await get_dashboard_stats(db, current_user.id)
+
+        # 缓存数据（2分钟TTL）
+        await cache_manager.set(
+            cache_key,
+            stats,
+            ttl=CacheKeys.TTL_STATS
+        )
+
+        logger.info(f"获取仪表盘数据成功 user_id={current_user.id}")
+        return DashboardStatsResponse(**stats)
+
+    except Exception as e:
+        logger.error(f"获取仪表盘数据失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取仪表盘数据失败: {str(e)}",
         )

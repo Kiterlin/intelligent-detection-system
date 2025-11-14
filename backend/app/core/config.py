@@ -16,6 +16,10 @@ class Settings(BaseSettings):
 
     # 数据库配置
     DATABASE_URL: str = "sqlite+aiosqlite:///./water_detection.db"
+    DB_POOL_SIZE: int = 20  # 连接池大小
+    DB_MAX_OVERFLOW: int = 10  # 连接池溢出大小
+    DB_POOL_PRE_PING: bool = True  # 连接前检查连接有效性
+    DB_ECHO: bool = False  # 生产环境关闭SQL日志，开发环境可设为True
 
     # Redis配置
     REDIS_URL: str = "redis://localhost:6379/0"

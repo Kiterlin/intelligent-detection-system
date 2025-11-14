@@ -40,14 +40,28 @@ target_metadata = Base.metadata
 def run_migrations_offline() -> None:
     """
     在 'offline' 模式下运行迁移
+    支持SQLite和PostgreSQL
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-    )
+
+    # 配置选项
+    context_config = {
+        "url": url,
+        "target_metadata": target_metadata,
+        "literal_binds": True,
+        "dialect_opts": {"paramstyle": "named"},
+    }
+
+    # PostgreSQL特定配置
+    if url and "postgresql" in url:
+        context_config["render_as_batch"] = False
+        context_config["compare_type"] = True
+        context_config["compare_server_default"] = True
+    # SQLite特定配置
+    elif url and "sqlite" in url:
+        context_config["render_as_batch"] = True
+
+    context.configure(**context_config)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -56,8 +70,27 @@ def run_migrations_offline() -> None:
 def do_run_migrations(connection: Connection) -> None:
     """
     执行迁移的辅助函数
+    支持SQLite和PostgreSQL
     """
-    context.configure(connection=connection, target_metadata=target_metadata)
+    # 获取数据库URL判断数据库类型
+    url = config.get_main_option("sqlalchemy.url")
+
+    # 配置选项
+    context_config = {
+        "connection": connection,
+        "target_metadata": target_metadata,
+    }
+
+    # PostgreSQL特定配置
+    if url and "postgresql" in url:
+        context_config["render_as_batch"] = False
+        context_config["compare_type"] = True
+        context_config["compare_server_default"] = True
+    # SQLite特定配置
+    elif url and "sqlite" in url:
+        context_config["render_as_batch"] = True
+
+    context.configure(**context_config)
 
     with context.begin_transaction():
         context.run_migrations()

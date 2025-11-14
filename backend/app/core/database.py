@@ -6,12 +6,23 @@ from sqlalchemy.orm import declarative_base
 
 from app.core.config import settings
 
+# 根据数据库类型配置引擎参数
+engine_kwargs = {
+    "echo": settings.DB_ECHO,
+    "future": True,
+}
+
+# 只有非 SQLite 数据库才支持连接池参数
+if "sqlite" not in settings.DATABASE_URL.lower():
+    engine_kwargs.update({
+        "pool_size": settings.DB_POOL_SIZE,
+        "max_overflow": settings.DB_MAX_OVERFLOW,
+        "pool_pre_ping": settings.DB_POOL_PRE_PING,
+        "pool_recycle": 3600,
+    })
+
 # 创建异步引擎
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=True,  # 开发环境打印SQL语句
-    future=True,
-)
+engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 
 # 创建异步会话工厂
 AsyncSessionLocal = async_sessionmaker(

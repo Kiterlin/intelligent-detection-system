@@ -28,7 +28,7 @@ export const useAuthStore = defineStore('auth', () => {
       // 获取用户信息
       await fetchUserInfo()
 
-      ElMessage.success('登录成功')
+      // 不在这里显示成功消息，由调用方决定
       return true
     } catch (error) {
       console.error('Login failed:', error)

@@ -51,6 +51,10 @@ class UserResponse(BaseModel):
     email: str
     role: UserRole
     is_active: bool
+    avatar_url: Optional[str] = None
+    nickname: Optional[str] = None
+    bio: Optional[str] = None
+    phone: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -91,3 +95,20 @@ class BatchUpdateStatus(BatchUserOperation):
     """批量更新用户状态请求模式"""
 
     is_active: bool = Field(..., description="激活状态")
+
+
+# 个人信息更新模式
+class ProfileUpdate(BaseModel):
+    """个人信息更新请求模式"""
+
+    email: Optional[EmailStr] = Field(None, description="电子邮箱")
+    nickname: Optional[str] = Field(None, min_length=1, max_length=50, description="昵称/真实姓名")
+    bio: Optional[str] = Field(None, max_length=500, description="个人简介")
+    phone: Optional[str] = Field(None, min_length=1, max_length=20, description="联系电话")
+
+
+# 管理员重置密码模式
+class PasswordReset(BaseModel):
+    """管理员重置用户密码请求模式（无需旧密码）"""
+
+    new_password: str = Field(..., min_length=6, max_length=50, description="新密码")

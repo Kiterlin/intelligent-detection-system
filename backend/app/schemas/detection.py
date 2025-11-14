@@ -49,8 +49,11 @@ class ImageDetectionResponse(BaseModel):
     detection_id: int = Field(..., description="检测记录ID")
     objects: List[DetectionObject] = Field(..., description="检测到的对象列表")
     detected_count: int = Field(..., description="检测到的对象数量")
+    detected_objects_count: int = Field(..., description="检测到的对象数量（前端兼容）")
     processing_time: float = Field(..., description="处理时间（秒）")
     output_file_path: str = Field(..., description="标注后的图像路径")
+    confidence_threshold: float = Field(..., description="置信度阈值")
+    iou_threshold: float = Field(..., description="IOU阈值")
 
 
 # 视频检测响应模式
@@ -118,3 +121,34 @@ class DetectionStatsResponse(BaseModel):
     video_detections: int = Field(..., description="视频检测次数")
     total_objects_detected: int = Field(..., description="总检测对象数")
     avg_processing_time: Optional[float] = Field(None, description="平均处理时间（秒）")
+
+
+# 模型使用统计
+class ModelUsageStats(BaseModel):
+    """模型使用统计"""
+
+    model_name: str = Field(..., description="模型名称")
+    count: int = Field(..., description="使用次数")
+
+
+# 最近活动
+class RecentActivity(BaseModel):
+    """最近活动记录"""
+
+    id: int = Field(..., description="检测记录ID")
+    input_type: str = Field(..., description="输入类型")
+    status: str = Field(..., description="状态")
+    detected_count: int = Field(..., description="检测对象数量")
+    created_at: str = Field(..., description="创建时间")
+
+
+# 仪表盘统计响应
+class DashboardStatsResponse(BaseModel):
+    """仪表盘统计响应模式"""
+
+    total_detections: int = Field(..., description="总检测次数")
+    weekly_videos: int = Field(..., description="本周视频检测数")
+    total_objects: int = Field(..., description="总检测对象数")
+    most_detected_class: str = Field(..., description="最常检测类别")
+    model_usage: List[ModelUsageStats] = Field(..., description="模型使用统计")
+    recent_activities: List[RecentActivity] = Field(..., description="最近5条活动")

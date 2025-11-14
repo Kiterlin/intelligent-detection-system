@@ -27,6 +27,25 @@ const routes = [
     component: () => import('@/views/user/Profile.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: () => import('@/views/user/Dashboard.vue'),
+    meta: { requiresAuth: true },
+  },
+  // 检测功能路由
+  {
+    path: '/detection',
+    name: 'Detection',
+    component: () => import('@/views/user/Detection.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/detection-history',
+    name: 'DetectionHistory',
+    component: () => import('@/views/user/DetectionHistory.vue'),
+    meta: { requiresAuth: true },
+  },
   // 管理后台路由
   {
     path: '/admin',

@@ -27,6 +27,10 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
   (response) => {
+    // 如果是 blob 类型，返回完整的 response（包含 headers 用于获取文件名）
+    if (response.config.responseType === 'blob') {
+      return response
+    }
     return response.data
   },
   (error) => {

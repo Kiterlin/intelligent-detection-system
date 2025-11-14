@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models.ml_model import MLModel, ModelStatus
 from app.utils.file import delete_file
+from app.core.cache import cache_manager, CacheKeys, invalidate_model_cache
 
 
 async def get_model_by_id(db: AsyncSession, model_id: int) -> Optional[MLModel]:
@@ -45,7 +46,15 @@ async def get_models_with_filter(
     Returns:
         (模型列表, 总数) 元组
     """
+    # 只缓存简单查询（无搜索关键词）
+    if not search and skip == 0:
+        cache_key = CacheKeys.model_list(status.value if status else None)
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data:
+            return cached_data.get("models", []), cached_data.get("total", 0)
+
     query = select(MLModel)
+    filters = []
 
     # 搜索条件
     if search:
@@ -54,20 +63,53 @@ async def get_models_with_filter(
             MLModel.version.ilike(f"%{search}%"),
             MLModel.description.ilike(f"%{search}%"),
         )
-        query = query.where(search_filter)
+        filters.append(search_filter)
 
     # 状态筛选
     if status:
-        query = query.where(MLModel.status == status)
+        filters.append(MLModel.status == status)
 
-    # 获取总数
-    count_query = select(func.count()).select_from(query.subquery())
+    # 应用筛选条件
+    if filters:
+        from sqlalchemy import and_
+        query = query.where(and_(*filters))
+
+    # 获取总数 - 使用优化的计数查询
+    count_query = select(func.count(MLModel.id))
+    if filters:
+        count_query = count_query.where(and_(*filters))
     total = await db.scalar(count_query)
 
-    # 分页查询
+    # 分页查询 - 按创建时间倒序排序（利用索引）
     query = query.offset(skip).limit(limit).order_by(MLModel.created_at.desc())
     result = await db.execute(query)
     models = list(result.scalars().all())
+
+    # 缓存结果（只缓存第一页且无搜索条件）
+    if not search and skip == 0:
+        cache_key = CacheKeys.model_list(status.value if status else None)
+        # 将 SQLAlchemy 对象转换为字典以便序列化
+        models_dict = [
+            {
+                "id": m.id,
+                "name": m.name,
+                "filename": m.filename,
+                "file_path": m.file_path,
+                "version": m.version,
+                "status": m.status.value,
+                "description": m.description,
+                "file_size": m.file_size,
+                "uploaded_by": m.uploaded_by,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+                "updated_at": m.updated_at.isoformat() if m.updated_at else None,
+            }
+            for m in models
+        ]
+        await cache_manager.set(
+            cache_key,
+            {"models": models_dict, "total": total or 0},
+            ttl=CacheKeys.TTL_MODEL_LIST
+        )
 
     return models, total or 0
 
@@ -116,6 +158,8 @@ async def create_model(
     try:
         await db.commit()
         await db.refresh(db_model)
+        # 使模型缓存失效
+        await invalidate_model_cache()
         return db_model
     except IntegrityError:
         await db.rollback()
@@ -156,6 +200,8 @@ async def update_model(
 
     await db.commit()
     await db.refresh(model)
+    # 使模型缓存失效
+    await invalidate_model_cache()
     return model
 
 
@@ -193,6 +239,8 @@ async def update_model_status(
     model.status = status
     await db.commit()
     await db.refresh(model)
+    # 使模型缓存失效
+    await invalidate_model_cache()
     return model
 
 
@@ -217,6 +265,8 @@ async def delete_model(db: AsyncSession, model_id: int) -> bool:
     # 删除数据库记录
     await db.delete(model)
     await db.commit()
+    # 使模型缓存失效
+    await invalidate_model_cache()
     return True
 
 

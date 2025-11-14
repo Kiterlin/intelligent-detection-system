@@ -45,3 +45,40 @@ export function changePassword(data) {
     data,
   })
 }
+
+/**
+ * 更新个人信息
+ */
+export function updateProfile(data) {
+  return request({
+    url: '/auth/profile',
+    method: 'put',
+    data,
+  })
+}
+
+/**
+ * 上传头像
+ */
+export function uploadAvatar(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request({
+    url: '/auth/upload-avatar',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
+
+/**
+ * 删除头像
+ */
+export function deleteAvatar() {
+  return request({
+    url: '/auth/delete-avatar',
+    method: 'delete',
+  })
+}

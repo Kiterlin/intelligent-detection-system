@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.database import init_db
+from app.core.cache import cache_manager
 from app.api.v1.router import api_router
 
 # 创建 FastAPI 应用实例
@@ -38,6 +39,14 @@ async def startup_event():
     # 开发环境下自动创建表（生产环境使用 Alembic 迁移）
     await init_db()
     print("✅ Database initialized")
+
+    # 初始化 Redis 缓存
+    await cache_manager.connect()
+    if cache_manager.is_enabled():
+        print("✅ Redis cache connected")
+    else:
+        print("⚠️ Redis cache disabled (running without cache)")
+
     print(f"📚 API Documentation: http://localhost:8000/docs")
 
 
@@ -46,6 +55,8 @@ async def shutdown_event():
     """
     应用关闭时的事件处理
     """
+    # 断开 Redis 缓存
+    await cache_manager.disconnect()
     print("👋 Shutting down...")
 
 
