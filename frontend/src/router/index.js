@@ -65,6 +65,19 @@ const routes = [
     component: () => import('@/views/user/BatchJobList.vue'),
     meta: { requiresAuth: true },
   },
+  // 告警系统路由
+  {
+    path: '/alerts',
+    name: 'AlertRules',
+    component: () => import('@/views/user/AlertRules.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/alerts/logs',
+    name: 'AlertLogs',
+    component: () => import('@/views/user/AlertLogs.vue'),
+    meta: { requiresAuth: true },
+  },
   // 管理后台路由
   {
     path: '/admin',
