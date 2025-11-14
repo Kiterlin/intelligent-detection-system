@@ -46,6 +46,25 @@ const routes = [
     component: () => import('@/views/user/DetectionHistory.vue'),
     meta: { requiresAuth: true },
   },
+  // 数据集管理路由
+  {
+    path: '/datasets',
+    name: 'DatasetList',
+    component: () => import('@/views/user/DatasetList.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/datasets/:id',
+    name: 'DatasetDetail',
+    component: () => import('@/views/user/DatasetDetail.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/batch-jobs',
+    name: 'BatchJobList',
+    component: () => import('@/views/user/BatchJobList.vue'),
+    meta: { requiresAuth: true },
+  },
   // 管理后台路由
   {
     path: '/admin',

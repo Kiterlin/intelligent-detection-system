@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     # 检测配置
     DETECTION_INPUT_DIR: str = "uploads/detections/input"
     DETECTION_OUTPUT_DIR: str = "uploads/detections/output"
+    DATASET_DIR: str = "uploads/datasets"  # 数据集文件目录
     MAX_IMAGE_SIZE: int = 10 * 1024 * 1024  # 10MB
     MAX_VIDEO_SIZE: int = 200 * 1024 * 1024  # 200MB
     DEFAULT_CONFIDENCE_THRESHOLD: float = 0.25
