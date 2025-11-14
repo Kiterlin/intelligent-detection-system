@@ -78,6 +78,13 @@ const routes = [
     component: () => import('@/views/user/AlertLogs.vue'),
     meta: { requiresAuth: true },
   },
+  // 结果对比路由
+  {
+    path: '/comparison',
+    name: 'Comparison',
+    component: () => import('@/views/user/Comparison.vue'),
+    meta: { requiresAuth: true },
+  },
   // 管理后台路由
   {
     path: '/admin',

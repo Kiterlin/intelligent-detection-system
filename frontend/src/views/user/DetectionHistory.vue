@@ -188,6 +188,17 @@
             </button>
 
             <button
+              v-if="selectedIds.length >= 2 && selectedIds.length <= 4"
+              class="px-4 py-2 bg-bright-cyan text-white rounded-lg hover:bg-bright-cyan-dark transition-colors flex items-center space-x-2"
+              @click="handleCompare"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <span class="text-sm font-medium">对比结果 ({{ selectedIds.length }})</span>
+            </button>
+
+            <button
               v-if="selectedIds.length > 0"
               class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center space-x-2"
               @click="handleBatchDelete"
@@ -662,6 +673,41 @@ async function handleBatchDelete() {
       ElMessage.error('批量删除失败')
     }
   }
+}
+
+function handleCompare() {
+  // 验证选择的记录数量
+  if (selectedIds.value.length < 2) {
+    ElMessage.warning('请至少选择2条记录进行对比')
+    return
+  }
+
+  if (selectedIds.value.length > 4) {
+    ElMessage.warning('最多支持4条记录的对比')
+    return
+  }
+
+  // 验证所有选中的记录都已完成
+  const selectedRecords = detectionStore.historyList.filter(
+    item => selectedIds.value.includes(item.id)
+  )
+
+  const hasIncompleteRecords = selectedRecords.some(
+    record => record.status !== 'completed' || !record.result_json
+  )
+
+  if (hasIncompleteRecords) {
+    ElMessage.warning('只能对比已完成的检测记录')
+    return
+  }
+
+  // 跳转到对比页面
+  router.push({
+    name: 'Comparison',
+    query: {
+      ids: selectedIds.value.join(',')
+    }
+  })
 }
 
 // 工具函数
