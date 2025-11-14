@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 1.5cm;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "SimHei", "STHeiti", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            font-size: 13px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #1890ff;
+            padding-bottom: 15px;
+        }
+
+        .header h1 {
+            color: #1890ff;
+            margin: 0 0 8px 0;
+            font-size: 24px;
+        }
+
+        .header .meta {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+        }
+
+        .section h2 {
+            color: #1890ff;
+            border-left: 4px solid #1890ff;
+            padding-left: 12px;
+            margin: 15px 0 12px 0;
+            font-size: 18px;
+        }
+
+        .model-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .model-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            text-align: center;
+        }
+
+        .model-card:nth-child(1) {
+            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+        }
+
+        .model-card:nth-child(2) {
+            background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+        }
+
+        .model-card:nth-child(3) {
+            background: linear-gradient(135deg, #fa8c16 0%, #d46b08 100%);
+        }
+
+        .model-card:nth-child(4) {
+            background: linear-gradient(135deg, #eb2f96 0%, #c41d7f 100%);
+        }
+
+        .model-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+            padding-bottom: 8px;
+        }
+
+        .model-card .stat {
+            margin: 8px 0;
+            font-size: 12px;
+        }
+
+        .model-card .stat .value {
+            font-size: 18px;
+            font-weight: bold;
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 12px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #1890ff;
+            color: white;
+            font-weight: bold;
+        }
+
+        td.model-name {
+            background-color: #f0f5ff;
+            font-weight: bold;
+            text-align: left;
+        }
+
+        tr:nth-child(even) td:not(.model-name) {
+            background-color: #f9f9f9;
+        }
+
+        .best {
+            background-color: #f6ffed !important;
+            color: #52c41a;
+            font-weight: bold;
+        }
+
+        .worst {
+            background-color: #fff1f0 !important;
+            color: #ff4d4f;
+        }
+
+        .chart {
+            text-align: center;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+
+        .chart img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+        }
+
+        .insights {
+            background: #f0f5ff;
+            border-left: 4px solid #1890ff;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .insights h3 {
+            color: #1890ff;
+            margin: 0 0 10px 0;
+            font-size: 15px;
+        }
+
+        .insights ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+
+        .insights li {
+            margin: 8px 0;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 2px solid #e8e8e8;
+            text-align: center;
+            color: #999;
+            font-size: 11px;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+            font-style: italic;
+        }
+
+        .legend {
+            margin: 10px 0;
+            padding: 10px;
+            background: #fafafa;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .legend span {
+            margin-right: 15px;
+        }
+
+        .legend .best-indicator {
+            color: #52c41a;
+            font-weight: bold;
+        }
+
+        .legend .worst-indicator {
+            color: #ff4d4f;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- 报告头部 -->
+    <div class="header">
+        <h1>{{ title }}</h1>
+        <div class="meta">
+            <span>生成时间: {{ generated_at }}</span>
+            {% if time_range %}
+            <span style="margin-left: 20px;">时间范围: {{ time_range.start }} 至 {{ time_range.end }}</span>
+            {% endif %}
+            {% if data.models_compared %}
+            <span style="margin-left: 20px;">对比模型数: {{ data.models_compared|length }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 模型概览卡片 -->
+    {% if data.models_compared %}
+    <div class="section">
+        <h2>一、模型概览</h2>
+        <div class="model-cards">
+            {% for model in data.models_compared %}
+            <div class="model-card">
+                <h3>{{ model.model_name }}</h3>
+                <div class="stat">
+                    <span class="value">{{ model.total_detections }}</span>
+                    <span>总检测次数</span>
+                </div>
+                <div class="stat">
+                    <span class="value">{{ model.total_objects }}</span>
+                    <span>检测对象数</span>
+                </div>
+                <div class="stat">
+                    <span class="value">{{ "%.2f" | format(model.avg_processing_time) }}s</span>
+                    <span>平均处理时间</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 性能对比表 -->
+    <div class="section">
+        <h2>二、性能指标对比</h2>
+        <div class="legend">
+            <span class="best-indicator">● 最佳</span>
+            <span class="worst-indicator">● 最差</span>
+            <span style="color: #999;">注: 自动标注各指标的最优和最差表现</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>指标</th>
+                    {% for model in data.models_compared %}
+                    <th>{{ model.model_name }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="model-name">总检测次数</td>
+                    {% set values = data.models_compared|map(attribute='total_detections')|list %}
+                    {% set max_val = values|max %}
+                    {% set min_val = values|min %}
+                    {% for model in data.models_compared %}
+                    <td class="{% if model.total_detections == max_val %}best{% elif model.total_detections == min_val %}worst{% endif %}">
+                        {{ model.total_detections }}
+                    </td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="model-name">检测对象总数</td>
+                    {% set values = data.models_compared|map(attribute='total_objects')|list %}
+                    {% set max_val = values|max %}
+                    {% set min_val = values|min %}
+                    {% for model in data.models_compared %}
+                    <td class="{% if model.total_objects == max_val %}best{% elif model.total_objects == min_val %}worst{% endif %}">
+                        {{ model.total_objects }}
+                    </td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="model-name">平均处理时间 (秒)</td>
+                    {% set values = data.models_compared|map(attribute='avg_processing_time')|list %}
+                    {% set max_val = values|max %}
+                    {% set min_val = values|min %}
+                    {% for model in data.models_compared %}
+                    <td class="{% if model.avg_processing_time == min_val %}best{% elif model.avg_processing_time == max_val %}worst{% endif %}">
+                        {{ "%.2f" | format(model.avg_processing_time) }}
+                    </td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="model-name">平均每次检测对象数</td>
+                    {% for model in data.models_compared %}
+                    {% set avg_obj = (model.total_objects / model.total_detections) if model.total_detections > 0 else 0 %}
+                    <td>{{ "%.2f" | format(avg_obj) }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="model-name">图片检测数</td>
+                    {% for model in data.models_compared %}
+                    <td>{{ model.image_count }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="model-name">视频检测数</td>
+                    {% for model in data.models_compared %}
+                    <td>{{ model.video_count }}</td>
+                    {% endfor %}
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 可视化对比 -->
+    {% if charts.comparison_chart %}
+    <div class="section">
+        <h2>三、可视化对比</h2>
+        <div class="chart">
+            <img src="file://{{ charts.comparison_chart }}" alt="模型对比图表">
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 类别检测能力对比 -->
+    {% if data.class_comparison %}
+    <div class="section">
+        <h2>四、类别检测能力对比</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>对象类别</th>
+                    {% for model in data.models_compared %}
+                    <th>{{ model.model_name }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for class_name, model_counts in data.class_comparison.items() %}
+                <tr>
+                    <td class="model-name">{{ class_name }}</td>
+                    {% set values = model_counts.values()|list %}
+                    {% set max_val = values|max %}
+                    {% set min_val = values|min %}
+                    {% for model in data.models_compared %}
+                    {% set count = model_counts.get(model.model_name, 0) %}
+                    <td class="{% if count == max_val and max_val > 0 %}best{% elif count == min_val %}worst{% endif %}">
+                        {{ count }}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- 关键洞察 -->
+    <div class="section">
+        <h2>五、关键洞察与建议</h2>
+        <div class="insights">
+            <h3>📊 性能分析</h3>
+            <ul>
+                {% if data.models_compared %}
+                {% set fastest_model = data.models_compared|sort(attribute='avg_processing_time')|first %}
+                <li><strong>速度最快:</strong> {{ fastest_model.model_name }} (平均 {{ "%.2f" | format(fastest_model.avg_processing_time) }} 秒)</li>
+
+                {% set most_used = data.models_compared|sort(attribute='total_detections', reverse=True)|first %}
+                <li><strong>使用最多:</strong> {{ most_used.model_name }} (共 {{ most_used.total_detections }} 次检测)</li>
+
+                {% set most_objects = data.models_compared|sort(attribute='total_objects', reverse=True)|first %}
+                <li><strong>检测对象最多:</strong> {{ most_objects.model_name }} (共检测 {{ most_objects.total_objects }} 个对象)</li>
+                {% endif %}
+            </ul>
+
+            <h3>💡 使用建议</h3>
+            <ul>
+                <li>对于<strong>实时检测场景</strong>，建议优先使用处理速度最快的模型</li>
+                <li>对于<strong>高精度要求</strong>，建议选择检测对象数量较多的模型</li>
+                <li>根据具体应用场景的<strong>精度与速度权衡</strong>，选择最适合的模型</li>
+                <li>定期进行模型性能对比，持续优化检测效果</li>
+            </ul>
+        </div>
+    </div>
+    {% else %}
+    <div class="no-data">
+        <p>暂无模型对比数据</p>
+        <p>请确保在报告参数中指定了需要对比的模型</p>
+    </div>
+    {% endif %}
+
+    <!-- 报告尾部 -->
+    <div class="footer">
+        <p>此报告由水下目标智能检测平台自动生成 | 模型对比报告</p>
+        <p>🤖 Generated with Claude Code</p>
+    </div>
+</body>
+</html>

@@ -234,3 +234,116 @@ class ReportDataAggregator:
             }
             for d in detections
         ]
+
+    async def aggregate_comparison_data(
+        self,
+        user_id: int,
+        model_ids: List[int],
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        dataset_id: Optional[int] = None,
+        detection_type: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        聚合多模型对比数据
+
+        Args:
+            user_id: 用户ID
+            model_ids: 要对比的模型ID列表
+            start_date: 开始日期
+            end_date: 结束日期
+            dataset_id: 数据集ID（可选）
+            detection_type: 检测类型（可选）
+
+        Returns:
+            对比数据字典
+        """
+        # 为每个模型聚合数据
+        models_compared = []
+
+        for model_id in model_ids:
+            # 构建查询条件
+            conditions = [
+                DetectionHistory.user_id == user_id,
+                DetectionHistory.status == DetectionStatus.COMPLETED,
+                DetectionHistory.model_id == model_id
+            ]
+
+            if start_date:
+                conditions.append(DetectionHistory.created_at >= start_date)
+            if end_date:
+                conditions.append(DetectionHistory.created_at <= end_date)
+            if detection_type:
+                conditions.append(DetectionHistory.input_type == detection_type)
+
+            # 获取该模型的统计数据
+            stats = await self._get_total_stats(conditions)
+
+            # 获取模型名称
+            model_query = select(MLModel.name).where(MLModel.id == model_id)
+            model_name = (await self.db.execute(model_query)).scalar() or f"Model {model_id}"
+
+            models_compared.append({
+                'model_id': model_id,
+                'model_name': model_name,
+                **stats
+            })
+
+        # 获取类别对比数据（所有模型）
+        class_comparison = await self._get_class_comparison(
+            user_id, model_ids, start_date, end_date, detection_type
+        )
+
+        return {
+            'models_compared': models_compared,
+            'class_comparison': class_comparison,
+            'parameters': {
+                'user_id': user_id,
+                'model_ids': model_ids,
+                'start_date': start_date.isoformat() if start_date else None,
+                'end_date': end_date.isoformat() if end_date else None,
+                'dataset_id': dataset_id,
+                'detection_type': detection_type
+            }
+        }
+
+    async def _get_class_comparison(
+        self,
+        user_id: int,
+        model_ids: List[int],
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+        detection_type: Optional[str]
+    ) -> Dict[str, Dict[str, int]]:
+        """获取各模型的类别检测对比数据"""
+        class_comparison = {}
+
+        for model_id in model_ids:
+            # 构建查询条件
+            conditions = [
+                DetectionHistory.user_id == user_id,
+                DetectionHistory.status == DetectionStatus.COMPLETED,
+                DetectionHistory.model_id == model_id
+            ]
+
+            if start_date:
+                conditions.append(DetectionHistory.created_at >= start_date)
+            if end_date:
+                conditions.append(DetectionHistory.created_at <= end_date)
+            if detection_type:
+                conditions.append(DetectionHistory.input_type == detection_type)
+
+            # 获取该模型的类别分布
+            class_dist = await self._get_class_distribution(conditions)
+
+            # 获取模型名称
+            model_query = select(MLModel.name).where(MLModel.id == model_id)
+            model_name = (await self.db.execute(model_query)).scalar() or f"Model {model_id}"
+
+            # 将该模型的类别数据添加到对比中
+            for class_name, count in class_dist.items():
+                if class_name not in class_comparison:
+                    class_comparison[class_name] = {}
+                class_comparison[class_name][model_name] = count
+
+        return class_comparison

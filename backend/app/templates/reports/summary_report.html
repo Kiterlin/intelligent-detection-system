@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "SimHei", "STHeiti", Arial, sans-serif;
+            line-height: 1.5;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            font-size: 14px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #1890ff;
+            padding-bottom: 15px;
+        }
+
+        .header h1 {
+            color: #1890ff;
+            margin: 0 0 8px 0;
+            font-size: 24px;
+        }
+
+        .header .meta {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+
+        .section h2 {
+            color: #1890ff;
+            border-left: 4px solid #1890ff;
+            padding-left: 10px;
+            margin: 15px 0 10px 0;
+            font-size: 16px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+        }
+
+        .stat-card.blue {
+            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+        }
+
+        .stat-card.green {
+            background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+        }
+
+        .stat-card.orange {
+            background: linear-gradient(135deg, #fa8c16 0%, #d46b08 100%);
+        }
+
+        .stat-card.purple {
+            background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .chart-container {
+            text-align: center;
+        }
+
+        .chart-container h3 {
+            color: #333;
+            margin: 0 0 10px 0;
+            font-size: 14px;
+        }
+
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #1890ff;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .highlights {
+            background: #f0f5ff;
+            border-left: 4px solid #1890ff;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .highlights ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+
+        .highlights li {
+            margin: 5px 0;
+            color: #333;
+        }
+
+        .footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 2px solid #e8e8e8;
+            text-align: center;
+            color: #999;
+            font-size: 11px;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-style: italic;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 报告头部 -->
+    <div class="header">
+        <h1>{{ title }}</h1>
+        <div class="meta">
+            <span>生成时间: {{ generated_at }}</span>
+            {% if time_range %}
+            <span style="margin-left: 20px;">时间范围: {{ time_range.start }} 至 {{ time_range.end }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 核心统计卡片 -->
+    <div class="section">
+        <h2>核心统计</h2>
+        <div class="stats-grid">
+            <div class="stat-card blue">
+                <div class="label">总检测次数</div>
+                <div class="value">{{ data.total_stats.total_detections }}</div>
+            </div>
+            <div class="stat-card green">
+                <div class="label">检测对象数</div>
+                <div class="value">{{ data.total_stats.total_objects }}</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="label">图片检测</div>
+                <div class="value">{{ data.total_stats.image_count }}</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="label">视频检测</div>
+                <div class="value">{{ data.total_stats.video_count }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 关键发现 -->
+    <div class="section">
+        <h2>关键发现</h2>
+        <div class="highlights">
+            <ul>
+                <li><strong>平均处理时间:</strong> {{ data.total_stats.avg_processing_time }} 秒</li>
+                {% if data.class_distribution %}
+                {% set top_class = data.class_distribution.items()|list|sort(attribute='1', reverse=True)|first %}
+                <li><strong>最常检测对象:</strong> {{ top_class[0] }} ({{ top_class[1] }} 次)</li>
+                {% endif %}
+                {% if data.model_usage %}
+                {% set top_model = data.model_usage|sort(attribute='usage_count', reverse=True)|first %}
+                <li><strong>最常用模型:</strong> {{ top_model.model_name }} (使用 {{ top_model.usage_count }} 次)</li>
+                {% endif %}
+                {% if data.total_stats.total_detections > 0 %}
+                <li><strong>平均每次检测对象数:</strong> {{ "%.1f" | format(data.total_stats.total_objects / data.total_stats.total_detections) }}</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- 可视化图表 (两列布局) -->
+    <div class="section">
+        <h2>数据可视化</h2>
+        <div class="two-column">
+            <!-- 类别分布 -->
+            <div class="chart-container">
+                <h3>对象类别分布</h3>
+                {% if charts.pie_chart %}
+                <img src="file://{{ charts.pie_chart }}" alt="类别分布">
+                {% else %}
+                <div class="no-data">暂无数据</div>
+                {% endif %}
+            </div>
+
+            <!-- 模型使用情况 -->
+            <div class="chart-container">
+                <h3>模型使用情况</h3>
+                {% if charts.bar_chart %}
+                <img src="file://{{ charts.bar_chart }}" alt="模型使用">
+                {% else %}
+                <div class="no-data">暂无数据</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 5 类别统计 -->
+    {% if data.class_distribution %}
+    <div class="section">
+        <h2>Top 5 检测对象</h2>
+        <table>
+            <tr>
+                <th>排名</th>
+                <th>类别</th>
+                <th>数量</th>
+                <th>占比</th>
+            </tr>
+            {% set total = data.class_distribution.values()|sum %}
+            {% for class_name, count in data.class_distribution.items()|list|sort(attribute='1', reverse=True)[:5] %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ class_name }}</td>
+                <td>{{ count }}</td>
+                <td>{{ "%.1f" | format((count / total * 100) if total > 0 else 0) }}%</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- 报告尾部 -->
+    <div class="footer">
+        <p>此报告由水下目标智能检测平台自动生成 | 概要报告</p>
+        <p>🤖 Generated with Claude Code</p>
+    </div>
+</body>
+</html>
