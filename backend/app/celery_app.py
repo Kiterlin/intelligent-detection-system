@@ -24,6 +24,30 @@ celery_app.conf.update(
     accept_content=["json"],
     task_acks_late=True,  # 任务执行完成后才确认
     worker_prefetch_multiplier=1,  # 每次只预取1个任务（适合耗时任务）
+    # 任务路由配置 - 将不同类型的任务分配到不同队列
+    task_routes={
+        'app.tasks.detection_tasks.*': {'queue': 'detection'},  # 检测任务使用detection队列
+        'app.tasks.report_tasks.*': {'queue': 'reports'},  # 报告任务使用reports队列
+        'generate_report': {'queue': 'reports'},  # 报告生成任务
+    },
+    # 队列定义
+    task_queues={
+        'default': {
+            'exchange': 'default',
+            'exchange_type': 'direct',
+            'routing_key': 'default',
+        },
+        'detection': {
+            'exchange': 'detection',
+            'exchange_type': 'direct',
+            'routing_key': 'detection',
+        },
+        'reports': {
+            'exchange': 'reports',
+            'exchange_type': 'direct',
+            'routing_key': 'reports',
+        },
+    },
 )
 
 # 自动发现任务模块
