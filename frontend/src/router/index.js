@@ -85,6 +85,19 @@ const routes = [
     component: () => import('@/views/user/Comparison.vue'),
     meta: { requiresAuth: true },
   },
+  // 报告生成路由
+  {
+    path: '/user/reports',
+    name: 'Reports',
+    component: () => import('@/views/user/Reports.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/user/reports/generator',
+    name: 'ReportGenerator',
+    component: () => import('@/views/user/ReportGenerator.vue'),
+    meta: { requiresAuth: true },
+  },
   // 管理后台路由
   {
     path: '/admin',
