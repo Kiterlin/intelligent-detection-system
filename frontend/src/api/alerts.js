@@ -11,7 +11,7 @@ import request from '@/utils/request'
  */
 export function createAlertRule(data) {
   return request({
-    url: '/alerts',
+    url: '/alerts/',
     method: 'post',
     data
   })
@@ -23,7 +23,7 @@ export function createAlertRule(data) {
  */
 export function getAlertRules(params) {
   return request({
-    url: '/alerts',
+    url: '/alerts/',
     method: 'get',
     params
   })

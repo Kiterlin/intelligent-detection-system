@@ -252,7 +252,7 @@ import {
   startBatchDetection,
   formatFileSize
 } from '@/api/dataset'
-import { getModels } from '@/api/admin'
+import { getActiveModels } from '@/api/detect'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -316,8 +316,8 @@ const loadDataset = async () => {
 // 加载模型列表
 const loadModels = async () => {
   try {
-    const res = await getModels({ skip: 0, limit: 100, status: 'active' })
-    models.value = res.items || []
+    const res = await getActiveModels()
+    models.value = res.models || []
 
     // 默认选择第一个激活的模型
     if (models.value.length > 0 && !batchForm.model_id) {

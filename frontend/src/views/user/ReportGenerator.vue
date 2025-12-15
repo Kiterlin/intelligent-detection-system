@@ -218,6 +218,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { createReport, validateReportParameters } from '@/api/reports'
+import { getActiveModels } from '@/api/detect'
 
 const router = useRouter()
 
@@ -287,13 +288,8 @@ const formRules = {
 // 加载可用模型
 const loadModels = async () => {
   try {
-    // 这里应该调用实际的API获取模型列表
-    // 暂时使用模拟数据
-    availableModels.value = [
-      { id: 1, name: 'YOLOv8-nano' },
-      { id: 2, name: 'YOLOv8-small' },
-      { id: 3, name: 'YOLOv8-medium' }
-    ]
+    const res = await getActiveModels()
+    availableModels.value = res.models || []
   } catch (error) {
     console.error('加载模型列表失败', error)
   }

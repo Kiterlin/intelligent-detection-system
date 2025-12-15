@@ -41,6 +41,11 @@
           <el-option label="已禁用" :value="false" />
         </el-select>
 
+        <!-- 返回首页按钮 -->
+        <el-button :icon="HomeFilled" @click="goToHome">
+          返回首页
+        </el-button>
+
         <!-- 创建按钮 -->
         <el-button
           type="primary"
@@ -333,7 +338,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Bell } from '@element-plus/icons-vue'
+import { Plus, Search, Bell, HomeFilled } from '@element-plus/icons-vue'
 import {
   getAlertRules,
   createAlertRule,
@@ -441,11 +446,11 @@ const loadRules = async () => {
     }
 
     const response = await getAlertRules(params)
-    rules.value = response.data.items.map(rule => ({
+    rules.value = (response.items || []).map(rule => ({
       ...rule,
       toggling: false
     }))
-    total.value = response.data.total
+    total.value = response.total || 0
   } catch (error) {
     ElMessage.error('加载规则列表失败: ' + (error.response?.data?.detail || error.message))
   } finally {
@@ -592,6 +597,11 @@ const handleDelete = async (rule) => {
 // 查看日志
 const viewLogs = (ruleId) => {
   router.push({ name: 'AlertLogs', query: { rule_id: ruleId } })
+}
+
+// 返回首页
+const goToHome = () => {
+  router.push('/')
 }
 
 // 页面加载

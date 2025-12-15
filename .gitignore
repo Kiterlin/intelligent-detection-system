@@ -49,6 +49,9 @@ Thumbs.db
 *.bak
 *.log
 
+# Temporary test scripts (backend root)
+backend/test_*.py
+
 # Docker
 .docker/
 

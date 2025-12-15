@@ -28,6 +28,7 @@ celery_app.conf.update(
     task_routes={
         'app.tasks.detection_tasks.*': {'queue': 'detection'},  # 检测任务使用detection队列
         'app.tasks.report_tasks.*': {'queue': 'reports'},  # 报告任务使用reports队列
+        'app.tasks.training_tasks.*': {'queue': 'training'},  # 训练任务使用training队列
         'generate_report': {'queue': 'reports'},  # 报告生成任务
     },
     # 队列定义
@@ -46,6 +47,11 @@ celery_app.conf.update(
             'exchange': 'reports',
             'exchange_type': 'direct',
             'routing_key': 'reports',
+        },
+        'training': {
+            'exchange': 'training',
+            'exchange_type': 'direct',
+            'routing_key': 'training',
         },
     },
 )

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.api.deps import get_current_active_user
 from app.models.user import User
-from app.crud.detection import get_detection_by_id
+from app.crud.detection import crud_detection_history
 from app.services.comparison_service import ComparisonService
 from app.schemas.comparison import ComparisonResponse
 from loguru import logger
@@ -72,7 +72,7 @@ async def compare_detections(
         # 获取所有检测记录
         records = []
         for detection_id in detection_ids:
-            record = await get_detection_by_id(db, detection_id)
+            record = await crud_detection_history.get_detection_by_id(db, detection_id)
 
             if not record:
                 raise HTTPException(

@@ -371,7 +371,7 @@ const getStatusText = (status) => {
 const loadRules = async () => {
   try {
     const response = await getAlertRules({ skip: 0, limit: 100 })
-    availableRules.value = response.data.items
+    availableRules.value = response.items || []
   } catch (error) {
     console.error('加载规则列表失败:', error)
   }
@@ -395,8 +395,8 @@ const loadLogs = async () => {
     }
 
     const response = await getAlertLogs(params)
-    logs.value = response.data.items
-    total.value = response.data.total
+    logs.value = response.items || []
+    total.value = response.total || 0
   } catch (error) {
     ElMessage.error('加载日志失败: ' + (error.response?.data?.detail || error.message))
   } finally {

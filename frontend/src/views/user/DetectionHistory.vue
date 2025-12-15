@@ -551,7 +551,7 @@ onMounted(async () => {
 })
 
 // 获取历史数据
-async function fetchHistoryData() {
+const fetchHistoryData = async () => {
   const params = {
     page: currentPage.value,
     page_size: pageSize.value
@@ -569,37 +569,37 @@ async function fetchHistoryData() {
 }
 
 // 事件处理
-function handleFilter() {
+const handleFilter = () => {
   currentPage.value = 1
   fetchHistoryData()
 }
 
-function handleRefresh() {
+const handleRefresh = () => {
   fetchHistoryData()
   ElMessage.success('刷新成功')
 }
 
-function handlePageChange(page) {
+const handlePageChange = (page) => {
   currentPage.value = page
   fetchHistoryData()
 }
 
-function handleSizeChange(size) {
+const handleSizeChange = (size) => {
   pageSize.value = size
   currentPage.value = 1
   fetchHistoryData()
 }
 
-function handleSelectionChange(selection) {
+const handleSelectionChange = (selection) => {
   selectedIds.value = selection.map((item) => item.id)
 }
 
-function handleView(row) {
+const handleView = (row) => {
   currentDetail.value = row
   detailDialogVisible.value = true
 }
 
-async function handleDownloadCommand(command, row) {
+const handleDownloadCommand = async (command, row) => {
   try {
     ElMessage.info('正在准备下载...')
     let response
@@ -632,7 +632,7 @@ async function handleDownloadCommand(command, row) {
   }
 }
 
-async function handleDelete(row) {
+const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除这条检测记录吗？', '提示', {
       confirmButtonText: '确定',
@@ -651,7 +651,7 @@ async function handleDelete(row) {
   }
 }
 
-async function handleBatchDelete() {
+const handleBatchDelete = async () => {
   try {
     await ElMessageBox.confirm(`确定要删除选中的 ${selectedIds.value.length} 条记录吗？`, '提示', {
       confirmButtonText: '确定',
@@ -675,7 +675,7 @@ async function handleBatchDelete() {
   }
 }
 
-function handleCompare() {
+const handleCompare = () => {
   // 验证选择的记录数量
   if (selectedIds.value.length < 2) {
     ElMessage.warning('请至少选择2条记录进行对比')
@@ -711,12 +711,12 @@ function handleCompare() {
 }
 
 // 工具函数
-function getFileName(path) {
+const getFileName = (path) => {
   if (!path) return '-'
   return path.split('/').pop()
 }
 
-function getStatusType(status) {
+const getStatusType = (status) => {
   const typeMap = {
     completed: 'success',
     processing: 'warning',
@@ -726,7 +726,7 @@ function getStatusType(status) {
   return typeMap[status] || 'info'
 }
 
-function getStatusText(status) {
+const getStatusText = (status) => {
   const textMap = {
     completed: '已完成',
     processing: '处理中',
@@ -736,7 +736,7 @@ function getStatusText(status) {
   return textMap[status] || status
 }
 
-function formatDate(dateString) {
+const formatDate = (dateString) => {
   if (!dateString) return '-'
   const date = new Date(dateString)
   return date.toLocaleString('zh-CN', {
@@ -748,7 +748,7 @@ function formatDate(dateString) {
   })
 }
 
-function getMediaUrl(path) {
+const getMediaUrl = (path) => {
   if (!path) return null
   const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
   return baseURL.replace('/api/v1', '') + '/' + path

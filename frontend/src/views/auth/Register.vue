@@ -216,7 +216,7 @@
 
         <!-- 页脚信息 -->
         <div class="text-center mt-6 text-sm text-gray-500">
-          <p>&copy; 2025 水下目标智能检测平台. All rights reserved.</p>
+          <p>&copy; 2025 智能目标检测系统. All rights reserved.</p>
         </div>
       </div>
     </div>

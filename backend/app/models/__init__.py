@@ -5,6 +5,8 @@ from app.models.detection_history import DetectionHistory, DetectionInputType, D
 from app.models.dataset import Dataset, DataFile, BatchJob, BatchJobStatus
 from app.models.alert import AlertRule, AlertLog, AlertLogStatus
 from app.models.report import Report
+from app.models.annotation import AnnotationTask, Annotation, AnnotationExport
+from app.models.training import TrainingJob
 
 __all__ = [
     "User",
@@ -22,4 +24,8 @@ __all__ = [
     "AlertLog",
     "AlertLogStatus",
     "Report",
+    "AnnotationTask",
+    "Annotation",
+    "AnnotationExport",
+    "TrainingJob",
 ]

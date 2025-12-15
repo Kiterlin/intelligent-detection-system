@@ -16,17 +16,7 @@ from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.models.detection_history import DetectionInputType, DetectionStatus
 from app.crud.ml_model import get_active_model, get_models_with_filter
-from app.crud.detection import (
-    create_detection,
-    update_detection_result,
-    update_detection_status,
-    get_detection_by_id,
-    get_detection_by_task_id,
-    get_detections_with_filter,
-    delete_detection,
-    get_user_detection_stats,
-    get_dashboard_stats,
-)
+from app.crud.detection import crud_detection_history
 from app.schemas.detection import (
     ImageDetectionResponse,
     DetectionObject,
@@ -185,7 +175,7 @@ async def detect_image(
         logger.info(f"用户 {current_user.id} 上传图像: {input_path}")
 
         # 创建检测记录
-        detection_record = await create_detection(
+        detection_record = await crud_detection_history.create_detection(
             db=db,
             user_id=current_user.id,
             model_id=active_model.id,
@@ -224,7 +214,7 @@ async def detect_image(
         result_json = detection_service.results_to_json(detections)
 
         # 更新检测记录
-        await update_detection_result(
+        await crud_detection_history.update_detection_result(
             db=db,
             detection_id=detection_record.id,
             output_file_path=str(output_path),
@@ -269,7 +259,7 @@ async def detect_image(
 
         # 更新检测状态为失败
         if "detection_record" in locals():
-            await update_detection_status(
+            await crud_detection_history.update_detection_status(
                 db=db,
                 detection_id=detection_record.id,
                 status=DetectionStatus.FAILED,
@@ -336,7 +326,7 @@ async def detect_video(
         logger.info(f"用户 {current_user.id} 上传视频: {input_path}")
 
         # 创建检测记录（稍后由任务更新task_id）
-        detection_record = await create_detection(
+        detection_record = await crud_detection_history.create_detection(
             db=db,
             user_id=current_user.id,
             model_id=active_model.id,
@@ -385,7 +375,7 @@ async def get_task_status(
         task_result = celery_app.AsyncResult(task_id)
 
         # 从数据库获取检测记录
-        detection_record = await get_detection_by_task_id(db, task_id)
+        detection_record = await crud_detection_history.get_detection_by_task_id(db, task_id)
         if not detection_record:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -461,7 +451,7 @@ async def get_detection_history(
     try:
         skip = (page - 1) * page_size
 
-        histories, total = await get_detections_with_filter(
+        histories, total = await crud_detection_history.get_detections_with_filter(
             db=db,
             user_id=current_user.id,
             skip=skip,
@@ -496,7 +486,7 @@ async def get_detection_detail(
 
     根据ID获取单条检测记录的详细信息
     """
-    detection = await get_detection_by_id(db, detection_id)
+    detection = await crud_detection_history.get_detection_by_id(db, detection_id)
 
     if not detection:
         raise HTTPException(
@@ -525,7 +515,7 @@ async def delete_detection_record(
 
     删除指定的检测记录（包括关联的文件）
     """
-    detection = await get_detection_by_id(db, detection_id)
+    detection = await crud_detection_history.get_detection_by_id(db, detection_id)
 
     if not detection:
         raise HTTPException(
@@ -549,7 +539,7 @@ async def delete_detection_record(
             os.remove(detection.output_file_path)
 
         # 删除数据库记录
-        success = await delete_detection(db, detection_id)
+        success = await crud_detection_history.delete_detection(db, detection_id)
 
         if success:
             logger.info(f"检测记录已删除 ID={detection_id}")
@@ -579,7 +569,7 @@ async def download_result_file(
 
     下载指定检测记录的输出文件（标注后的图像或视频）
     """
-    detection = await get_detection_by_id(db, detection_id)
+    detection = await crud_detection_history.get_detection_by_id(db, detection_id)
 
     if not detection:
         raise HTTPException(
@@ -641,7 +631,7 @@ async def download_report(
 
     生成并下载包含检测详细信息的文本报告
     """
-    detection = await get_detection_by_id(db, detection_id)
+    detection = await crud_detection_history.get_detection_by_id(db, detection_id)
 
     if not detection:
         raise HTTPException(
@@ -661,7 +651,7 @@ async def download_report(
 
     report_lines = [
         "=" * 60,
-        "水下目标检测报告",
+        "智能目标检测报告",
         "=" * 60,
         "",
         "【基本信息】",
@@ -769,7 +759,7 @@ async def download_all(
 
     打包下载结果文件和检测报告
     """
-    detection = await get_detection_by_id(db, detection_id)
+    detection = await crud_detection_history.get_detection_by_id(db, detection_id)
 
     if not detection:
         raise HTTPException(
@@ -798,7 +788,7 @@ async def download_all(
     # 生成报告内容（复用上面的逻辑）
     report_lines = [
         "=" * 60,
-        "水下目标检测报告",
+        "智能目标检测报告",
         "=" * 60,
         "",
         "【基本信息】",
@@ -904,7 +894,7 @@ async def get_detection_stats(
     获取当前用户的检测统计数据
     """
     try:
-        stats = await get_user_detection_stats(db, current_user.id)
+        stats = await crud_detection_history.get_user_detection_stats(db, current_user.id)
         return DetectionStatsResponse(**stats)
 
     except Exception as e:
@@ -975,7 +965,7 @@ async def get_dashboard(
             return DashboardStatsResponse(**cached_data)
 
         # 从数据库获取统计数据
-        stats = await get_dashboard_stats(db, current_user.id)
+        stats = await crud_detection_history.get_dashboard_stats(db, current_user.id)
 
         # 缓存数据（2分钟TTL）
         await cache_manager.set(

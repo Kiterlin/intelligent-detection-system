@@ -2,10 +2,19 @@
 报告数据库模型
 """
 from datetime import datetime
+from enum import Enum
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+
+
+class ReportStatus(str, Enum):
+    """报告状态枚举"""
+    PENDING = "pending"
+    GENERATING = "generating"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class Report(Base):

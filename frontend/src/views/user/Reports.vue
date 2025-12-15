@@ -29,6 +29,11 @@
 
         <div class="flex-1"></div>
 
+        <!-- 返回首页按钮 -->
+        <el-button :icon="HomeFilled" @click="goToHome">
+          返回首页
+        </el-button>
+
         <!-- 刷新按钮 -->
         <el-button :icon="Refresh" @click="loadReports">
           刷新
@@ -156,10 +161,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Plus, Refresh, Loading } from '@element-plus/icons-vue'
+import { Document, Plus, Refresh, Loading, HomeFilled } from '@element-plus/icons-vue'
 import {
   getReports,
   deleteReport,
@@ -251,6 +256,11 @@ const goToGenerator = () => {
   router.push('/user/reports/generator')
 }
 
+// 返回首页
+const goToHome = () => {
+  router.push('/')
+}
+
 // 格式化报告类型
 const getReportTypeInfo = (type) => {
   const info = formatReportType(type)
@@ -276,22 +286,27 @@ const formatDate = (dateString) => {
   return date.toLocaleString('zh-CN')
 }
 
+// 定时器引用
+let refreshInterval = null
+
 // 初始化
 onMounted(() => {
   loadReports()
 
   // 自动刷新生成中的报告
-  const refreshInterval = setInterval(() => {
+  refreshInterval = setInterval(() => {
     const hasGenerating = reports.value.some(r => r.status === 'generating')
     if (hasGenerating) {
       loadReports()
     }
   }, 5000) // 每5秒刷新一次
+})
 
-  // 清理定时器
-  onBeforeUnmount(() => {
+// 清理定时器
+onBeforeUnmount(() => {
+  if (refreshInterval) {
     clearInterval(refreshInterval)
-  })
+  }
 })
 </script>
 

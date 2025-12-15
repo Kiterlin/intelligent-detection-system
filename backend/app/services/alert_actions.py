@@ -144,7 +144,7 @@ async def send_alert_email(
 检测类型: {detection_info.get('input_type', 'N/A')}
 
 ---
-此邮件由水下目标智能检测平台自动发送，请勿直接回复。
+此邮件由智能目标检测系统自动发送，请勿直接回复。
 """
 
     # 构建HTML邮件正文
@@ -191,7 +191,7 @@ async def send_alert_email(
             <p><strong>检测类型:</strong> {detection_info.get('input_type', 'N/A')}</p>
         </div>
         <div class="footer">
-            <p>此邮件由水下目标智能检测平台自动发送，请勿直接回复。</p>
+            <p>此邮件由智能目标检测系统自动发送，请勿直接回复。</p>
         </div>
     </div>
 </body>

@@ -124,11 +124,14 @@ async def _save_dataset_file(
 
 def _build_dataset_response(dataset, files: List = None) -> DatasetResponse:
     """构建数据集响应对象"""
-    files = files or dataset.files
+    if files is None:
+        files_list = list(getattr(dataset, "files", []) or [])
+    else:
+        files_list = files
 
     # 计算统计信息
-    file_count = len(files)
-    total_size = sum(f.file_size for f in files)
+    file_count = len(files_list)
+    total_size = sum((f.file_size or 0) for f in files_list)
 
     return DatasetResponse(
         id=dataset.id,

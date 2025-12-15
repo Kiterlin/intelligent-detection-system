@@ -2,7 +2,7 @@
 # 服务状态测试脚本
 
 echo "========================================"
-echo "   水下目标检测系统 - 服务状态检查"
+echo "   智能目标检测系统 - 服务状态检查"
 echo "========================================"
 echo ""
 
@@ -92,8 +92,30 @@ else
 fi
 echo ""
 
+# 测试登录接口（验证默认账号可用）
+echo "7️⃣  测试登录接口 (默认账号)"
+LOGIN_OK=0
+LOGIN_CHECK=$(curl -s -w "%{http_code}" -o /tmp/login_response.txt \
+  -H "Content-Type: application/json" \
+  -X POST http://localhost:8000/api/v1/auth/login \
+  -d '{"username":"user","password":"user123"}' 2>/dev/null)
+
+if [ "$LOGIN_CHECK" = "200" ]; then
+    LOGIN_OK=1
+    echo -e "${GREEN}✅ 登录接口正常${NC} (user/user123)"
+else
+    echo -e "${RED}❌ 登录接口失败${NC} (user/user123)"
+    echo "   HTTP状态码: $LOGIN_CHECK"
+    if [ -f /tmp/login_response.txt ]; then
+        echo "   响应:"
+        cat /tmp/login_response.txt
+    fi
+fi
+rm -f /tmp/login_response.txt 2>/dev/null || true
+echo ""
+
 # 检查模型文件
-echo "7️⃣  检查模型文件目录"
+echo "8️⃣  检查模型文件目录"
 if [ -d "backend/models" ]; then
     MODEL_COUNT=$(find backend/models -name "*.pt" -o -name "*.pth" | wc -l)
     if [ $MODEL_COUNT -gt 0 ]; then
@@ -114,7 +136,7 @@ fi
 echo ""
 
 # 检查上传目录
-echo "8️⃣  检查上传目录"
+echo "9️⃣  检查上传目录"
 if [ -d "backend/uploads" ]; then
     UPLOAD_SIZE=$(du -sh backend/uploads 2>/dev/null | awk '{print $1}')
     echo -e "${GREEN}✅ uploads目录存在${NC}"
@@ -126,7 +148,7 @@ fi
 echo ""
 
 # 检查结果目录
-echo "9️⃣  检查结果目录"
+echo "🔟  检查结果目录"
 if [ -d "backend/results" ]; then
     RESULT_SIZE=$(du -sh backend/results 2>/dev/null | awk '{print $1}')
     echo -e "${GREEN}✅ results目录存在${NC}"
@@ -154,6 +176,10 @@ if ! lsof -i :5173 > /dev/null 2>&1; then
 fi
 
 if ! redis-cli ping > /dev/null 2>&1; then
+    ISSUES=$((ISSUES + 1))
+fi
+
+if [ "${LOGIN_OK:-1}" -ne 1 ]; then
     ISSUES=$((ISSUES + 1))
 fi
 

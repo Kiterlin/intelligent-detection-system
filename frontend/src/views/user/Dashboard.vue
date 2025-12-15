@@ -9,6 +9,12 @@
     </div>
 
     <div class="container-custom pb-12">
+      <div class="flex justify-end mb-6">
+        <el-button :icon="HomeFilled" @click="goHome">
+          返回首页
+        </el-button>
+      </div>
+
       <!-- 统计卡片 -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <!-- 总检测次数 -->
@@ -252,7 +258,8 @@ import {
   ArrowRight,
   Clock,
   Timer,
-  Document
+  Document,
+  HomeFilled
 } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -383,7 +390,7 @@ const loadDashboardData = async () => {
   loading.value = true
   try {
     const response = await getDashboardStats()
-    stats.value = response.data
+    stats.value = response
   } catch (error) {
     console.error('加载仪表盘数据失败:', error)
     ElMessage.error('加载数据失败，请稍后重试')
@@ -395,6 +402,10 @@ const loadDashboardData = async () => {
 onMounted(() => {
   loadDashboardData()
 })
+
+const goHome = () => {
+  router.push('/')
+}
 </script>
 
 <style scoped>

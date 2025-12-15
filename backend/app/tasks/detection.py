@@ -11,11 +11,7 @@ from loguru import logger
 from app.celery_app import celery_app
 from app.core.config import settings
 from app.models.detection_history import DetectionStatus
-from app.crud.detection import (
-    get_detection_by_id,
-    update_detection_status,
-    update_detection_result,
-)
+from app.crud.detection import crud_detection_history
 from app.crud.ml_model import get_model_by_id
 from app.services.model_loader import model_loader
 from app.services.detection import DetectionService
@@ -66,12 +62,12 @@ async def _async_process_video_detection(task: Task, detection_id: int):
             logger.info(f"开始处理视频检测任务 ID={detection_id}")
 
             # 获取检测记录
-            detection_record = await get_detection_by_id(db, detection_id)
+            detection_record = await crud_detection_history.get_detection_by_id(db, detection_id)
             if not detection_record:
                 raise ValueError(f"检测记录不存在: {detection_id}")
 
             # 更新状态为处理中
-            await update_detection_status(
+            await crud_detection_history.update_detection_status(
                 db, detection_id, DetectionStatus.PROCESSING
             )
 
@@ -125,7 +121,7 @@ async def _async_process_video_detection(task: Task, detection_id: int):
             result_json = detection_service.results_to_json(detections)
 
             # 更新检测结果
-            await update_detection_result(
+            await crud_detection_history.update_detection_result(
                 db=db,
                 detection_id=detection_id,
                 output_file_path=str(output_path),
@@ -163,7 +159,7 @@ async def _async_process_video_detection(task: Task, detection_id: int):
 
             # 更新检测状态为失败
             try:
-                await update_detection_status(
+                await crud_detection_history.update_detection_status(
                     db, detection_id, DetectionStatus.FAILED, error_message=str(e)
                 )
             except Exception as update_error:

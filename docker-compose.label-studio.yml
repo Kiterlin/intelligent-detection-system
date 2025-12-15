@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Label Studio 主服务
+  label-studio:
+    image: heartexlabs/label-studio:latest
+    container_name: label-studio
+    restart: "no"
+    ports:
+      - "8080:8080"  # Label Studio Web UI
+    environment:
+      # 数据库配置
+      - DJANGO_DB=default
+      - POSTGRE_NAME=labelstudio
+      - POSTGRE_USER=labelstudio
+      - POSTGRE_PASSWORD=labelstudio123
+      - POSTGRE_PORT=5432
+      - POSTGRE_HOST=label-studio-db
+
+      # Redis 配置（可选，用于任务队列）
+      - REDIS_LOCATION=redis://label-studio-redis:6379/0
+
+      # Label Studio 配置
+      - LABEL_STUDIO_HOST=http://localhost:8080
+      - LABEL_STUDIO_USERNAME=admin@example.com
+      - LABEL_STUDIO_PASSWORD=admin123
+
+      # 存储配置
+      - LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=true
+      - LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/label-studio/data
+
+    volumes:
+      # 数据持久化
+      - label-studio-data:/label-studio/data
+      # 可选：挂载本地文件供标注
+      - ./data/label-studio-files:/label-studio/files:ro
+    depends_on:
+      - label-studio-db
+      - label-studio-redis
+    networks:
+      - label-studio-network
+
+  # PostgreSQL 数据库（Label Studio 专用）
+  label-studio-db:
+    image: postgres:14-alpine
+    container_name: label-studio-db
+    restart: "no"
+    environment:
+      - POSTGRES_DB=labelstudio
+      - POSTGRES_USER=labelstudio
+      - POSTGRES_PASSWORD=labelstudio123
+    volumes:
+      - label-studio-postgres:/var/lib/postgresql/data
+    networks:
+      - label-studio-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U labelstudio"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis（用于任务队列）
+  label-studio-redis:
+    image: redis:7-alpine
+    container_name: label-studio-redis
+    restart: "no"
+    volumes:
+      - label-studio-redis:/data
+    networks:
+      - label-studio-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  label-studio-data:
+    driver: local
+  label-studio-postgres:
+    driver: local
+  label-studio-redis:
+    driver: local
+
+networks:
+  label-studio-network:
+    driver: bridge

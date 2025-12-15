@@ -1,5 +1,5 @@
 #!/bin/bash
-# 水下目标检测系统 - 一键启动脚本（Conda环境）
+# 智能目标检测系统 - 一键启动脚本（Conda环境）
 
 set -e
 
@@ -11,7 +11,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}   🚀 水下目标智能检测平台 - 一键启动${NC}"
+echo -e "${BLUE}   🚀 智能目标检测系统 - 一键启动${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
@@ -48,14 +48,73 @@ cleanup() {
 # 捕获 Ctrl+C 信号
 trap cleanup INT TERM
 
-# 检查conda环境
-if [ -z "$CONDA_DEFAULT_ENV" ]; then
-    echo -e "${RED}❌ 请先激活conda环境：${NC}"
-    echo "   conda activate RSD"
+BACKEND_DIR="$PROJECT_DIR/backend"
+BACKEND_VENV_ACTIVATE="$BACKEND_DIR/venv/bin/activate"
+
+# 选择 Python 可执行文件
+if command -v python > /dev/null 2>&1; then
+    PYTHON_BIN="python"
+elif command -v python3 > /dev/null 2>&1; then
+    PYTHON_BIN="python3"
+else
+    echo -e "${RED}❌ 未找到 Python，请先安装/配置 Python 环境${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Conda环境: $CONDA_DEFAULT_ENV${NC}"
+# 检查/提示 conda 环境（允许使用 backend/venv 作为后备）
+if [ -z "${CONDA_DEFAULT_ENV:-}" ]; then
+    echo -e "${YELLOW}⚠️  未检测到已激活的 conda 环境，将尝试使用 backend/venv（如存在）...${NC}"
+else
+    echo -e "${GREEN}✅ Conda环境: $CONDA_DEFAULT_ENV${NC}"
+fi
+
+# 确保后端依赖可用（至少需要 uvicorn）
+if ! $PYTHON_BIN -c "import uvicorn" > /dev/null 2>&1; then
+    if [ -f "$BACKEND_VENV_ACTIVATE" ]; then
+        echo -e "${YELLOW}⚠️  当前环境缺少 uvicorn，尝试激活 backend/venv...${NC}"
+        # shellcheck disable=SC1090
+        source "$BACKEND_VENV_ACTIVATE"
+    fi
+fi
+
+if ! $PYTHON_BIN -c "import uvicorn" > /dev/null 2>&1; then
+    echo -e "${RED}❌ 后端依赖缺失：未检测到 uvicorn${NC}"
+    echo "   解决方案："
+    echo "   1) 激活正确的环境（推荐）：conda activate RSD"
+    echo "   2) 或在后端目录安装依赖：cd backend && pip install -r requirements.txt"
+    exit 1
+fi
+
+# 检测 Celery（视频检测需要，缺失时跳过启动）
+CELERY_ENABLED=0
+if $PYTHON_BIN -c "import celery" > /dev/null 2>&1; then
+    CELERY_ENABLED=1
+else
+    echo -e "${YELLOW}⚠️  未检测到 celery，将跳过 Celery worker（视频检测相关功能不可用）${NC}"
+fi
+
+wait_for_backend() {
+    local url="http://127.0.0.1:8000/health"
+    local max_wait_seconds=20
+
+    for ((i=1; i<=max_wait_seconds; i++)); do
+        if $PYTHON_BIN - <<PY > /dev/null 2>&1
+import sys
+import urllib.request
+
+try:
+    with urllib.request.urlopen("${url}", timeout=1) as resp:
+        sys.exit(0 if resp.status == 200 else 1)
+except Exception:
+    sys.exit(1)
+PY
+        then
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
 
 # 检查并启动PostgreSQL
 echo ""
@@ -101,20 +160,28 @@ echo ""
 # 1. 启动后端 FastAPI
 echo "🔧 启动后端服务..."
 cd "$PROJECT_DIR/backend"
-nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload > "$PROJECT_DIR/backend.log" 2>&1 &
+nohup $PYTHON_BIN -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload > "$PROJECT_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
 echo $BACKEND_PID >> "$PID_FILE"
 echo -e "${GREEN}✅ 后端服务已启动 (PID: $BACKEND_PID)${NC}"
-sleep 2
+echo "⏳ 等待后端就绪..."
+if ! wait_for_backend; then
+    echo -e "${RED}❌ 后端未能在预期时间内就绪，请检查日志：$PROJECT_DIR/backend.log${NC}"
+    tail -n 80 "$PROJECT_DIR/backend.log" 2>/dev/null || true
+    exit 1
+fi
+echo -e "${GREEN}✅ 后端健康检查通过${NC}"
 
 # 2. 启动 Celery Worker
-echo "⚙️  启动Celery异步任务服务..."
-cd "$PROJECT_DIR/backend"
-nohup celery -A app.celery_app worker --loglevel=info > "$PROJECT_DIR/celery.log" 2>&1 &
-CELERY_PID=$!
-echo $CELERY_PID >> "$PID_FILE"
-echo -e "${GREEN}✅ Celery服务已启动 (PID: $CELERY_PID)${NC}"
-sleep 2
+if [ $CELERY_ENABLED -eq 1 ]; then
+    echo "⚙️  启动Celery异步任务服务..."
+    cd "$PROJECT_DIR/backend"
+    nohup $PYTHON_BIN -m celery -A app.celery_app worker --loglevel=info > "$PROJECT_DIR/celery.log" 2>&1 &
+    CELERY_PID=$!
+    echo $CELERY_PID >> "$PID_FILE"
+    echo -e "${GREEN}✅ Celery服务已启动 (PID: $CELERY_PID)${NC}"
+    sleep 2
+fi
 
 # 3. 启动前端 Vite
 echo "🎨 启动前端开发服务器..."
@@ -143,6 +210,10 @@ echo "📋 日志文件："
 echo "   📄 后端日志:  $PROJECT_DIR/backend.log"
 echo "   📄 Celery日志: $PROJECT_DIR/celery.log"
 echo "   📄 前端日志:  $PROJECT_DIR/frontend.log"
+if [ $CELERY_ENABLED -ne 1 ]; then
+    echo ""
+    echo -e "${YELLOW}⚠️  Celery worker 未启动（celery 未安装），视频检测相关功能不可用${NC}"
+fi
 echo ""
 echo -e "${YELLOW}🛑 停止服务: 按 Ctrl+C 或运行 ./stop.sh${NC}"
 echo ""

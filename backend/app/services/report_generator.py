@@ -141,11 +141,11 @@ class ReportGenerator:
 
         # 3. 确定报告标题
         report_titles = {
-            'summary': '水下目标检测概要报告',
-            'detailed': '水下目标检测详细报告',
-            'comparison': '水下目标检测模型对比报告'
+            'summary': '智能目标检测概要报告',
+            'detailed': '智能目标检测详细报告',
+            'comparison': '智能目标检测模型对比报告'
         }
-        report_title = report_titles.get(report_type, '水下目标检测报告')
+        report_title = report_titles.get(report_type, '智能目标检测报告')
 
         # 4. 渲染 HTML
         template_name = f"{report_type}_report.html"

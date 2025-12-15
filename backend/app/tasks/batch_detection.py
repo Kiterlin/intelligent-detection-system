@@ -13,7 +13,7 @@ from app.celery_app import celery_app
 from app.core.config import settings
 from app.models.detection_history import DetectionInputType, DetectionStatus
 from app.models.dataset import BatchJobStatus
-from app.crud.detection import create_detection, update_detection_result, update_detection_status
+from app.crud.detection import crud_detection_history
 from app.crud.dataset import (
     get_batch_job_by_id,
     update_batch_job_status,
@@ -115,7 +115,7 @@ async def _async_process_single_file(
                 raise ValueError(f"不支持的文件类型: {file_obj.file_type}")
 
             # 创建检测记录
-            detection_record = await create_detection(
+            detection_record = await crud_detection_history.create_detection(
                 db=db,
                 user_id=user_id,
                 model_id=model_id,
@@ -128,7 +128,7 @@ async def _async_process_single_file(
             detection_id = detection_record.id
 
             # 更新状态为处理中
-            await update_detection_status(db, detection_id, DetectionStatus.PROCESSING)
+            await crud_detection_history.update_detection_status(db, detection_id, DetectionStatus.PROCESSING)
 
             # 获取模型信息
             model_record = await get_model_by_id(db, model_id)
@@ -193,7 +193,7 @@ async def _async_process_single_file(
             result_json = detection_service.results_to_json(detections)
 
             # 更新检测结果
-            await update_detection_result(
+            await crud_detection_history.update_detection_result(
                 db=db,
                 detection_id=detection_id,
                 output_file_path=str(output_path),
@@ -235,7 +235,7 @@ async def _async_process_single_file(
 
             # 如果有检测记录，更新为失败状态
             if detection_id:
-                await update_detection_status(
+                await crud_detection_history.update_detection_status(
                     db, detection_id, DetectionStatus.FAILED, error_message=str(e)
                 )
 

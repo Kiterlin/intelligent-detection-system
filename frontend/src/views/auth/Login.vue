@@ -19,7 +19,7 @@
         <!-- 系统标题 -->
         <div>
           <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4">
-            水下目标智能检测平台
+            智能目标检测系统
           </h1>
           <p class="text-lg md:text-xl text-bright-cyan font-medium">
             Intelligent Underwater Target Detection System
@@ -32,7 +32,7 @@
             深海科技 · 智能识别 · 精准分析
           </p>
           <p class="text-sm md:text-base text-white/70">
-            运用先进AI技术,实现水下目标的智能检测与识别
+            运用先进AI技术,实现多场景目标的智能检测与识别
           </p>
         </div>
 
@@ -174,7 +174,7 @@
 
         <!-- 页脚信息 -->
         <div class="text-center mt-6 text-sm text-gray-500">
-          <p>&copy; 2025 水下目标智能检测平台. All rights reserved.</p>
+          <p>&copy; 2025 智能目标检测系统. All rights reserved.</p>
         </div>
       </div>
     </div>

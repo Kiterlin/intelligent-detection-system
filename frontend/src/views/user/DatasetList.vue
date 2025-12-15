@@ -28,6 +28,14 @@
           </el-input>
         </div>
 
+        <!-- 返回首页 -->
+        <el-button
+          :icon="HomeFilled"
+          @click="goToHome"
+        >
+          返回首页
+        </el-button>
+
         <!-- 创建按钮 -->
         <el-button
           type="primary"
@@ -201,7 +209,8 @@ import {
   Search,
   Plus,
   Folder,
-  FolderOpened
+  FolderOpened,
+  HomeFilled
 } from '@element-plus/icons-vue'
 import {
   getDatasets,
@@ -342,6 +351,11 @@ const handleDelete = (dataset) => {
 // 跳转到详情页
 const goToDetail = (datasetId) => {
   router.push(`/datasets/${datasetId}`)
+}
+
+// 返回首页
+const goToHome = () => {
+  router.push('/')
 }
 
 // 格式化日期

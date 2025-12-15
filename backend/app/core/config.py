@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # 项目基本信息
     PROJECT_NAME: str = "Water Target Detection API"
     VERSION: str = "1.0.0"
-    DESCRIPTION: str = "企业级水下目标智能检测平台"
+    DESCRIPTION: str = "企业级智能目标检测系统"
     API_V1_STR: str = "/api/v1"
 
     # 数据库配置
@@ -54,7 +54,12 @@ class Settings(BaseSettings):
     SUPPORTED_VIDEO_FORMATS: List[str] = [".mp4", ".avi", ".mov", ".mkv"]
 
     # CORS配置
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ]
 
     # 日志配置
     LOG_LEVEL: str = "INFO"

@@ -82,8 +82,8 @@ async def check_and_trigger_alerts(
 
                 # 构建检测信息（用于动作执行）
                 # 注意：此处需要从数据库获取完整的检测记录
-                from app.crud.detection import get_detection_by_id
-                detection_record = await get_detection_by_id(db, detection_id)
+                from app.crud.detection import crud_detection_history
+                detection_record = await crud_detection_history.get_detection_by_id(db, detection_id)
 
                 detection_info = {
                     "id": detection_id,

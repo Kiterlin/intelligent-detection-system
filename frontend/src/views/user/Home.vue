@@ -11,7 +11,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h1 class="text-xl md:text-2xl font-bold text-deep-blue">水下目标智能检测平台</h1>
+            <h1 class="text-xl md:text-2xl font-bold text-deep-blue">智能目标检测系统</h1>
           </div>
 
           <!-- 用户菜单 -->
@@ -220,6 +220,42 @@
               <div class="flex-1">
                 <h4 class="font-semibold text-deep-blue mb-1">检测历史</h4>
                 <p class="text-sm text-gray-500">查看历史检测记录</p>
+              </div>
+            </div>
+          </button>
+
+          <!-- 数据标注 -->
+          <button
+            class="card-interactive group text-left"
+            @click="router.push('/annotations/tasks')"
+          >
+            <div class="flex items-center space-x-4">
+              <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </div>
+              <div class="flex-1">
+                <h4 class="font-semibold text-deep-blue mb-1">数据标注</h4>
+                <p class="text-sm text-gray-500">管理标注任务</p>
+              </div>
+            </div>
+          </button>
+
+          <!-- 报告管理 -->
+          <button
+            class="card-interactive group text-left"
+            @click="router.push('/user/reports')"
+          >
+            <div class="flex items-center space-x-4">
+              <div class="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg class="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div class="flex-1">
+                <h4 class="font-semibold text-deep-blue mb-1">报告管理</h4>
+                <p class="text-sm text-gray-500">生成检测报告</p>
               </div>
             </div>
           </button>

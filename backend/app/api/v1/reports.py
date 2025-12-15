@@ -27,19 +27,7 @@ router = APIRouter()
 
 def _build_report_response(report) -> ReportResponse:
     """构建报告响应对象"""
-    return ReportResponse(
-        id=report.id,
-        user_id=report.user_id,
-        name=report.name,
-        report_type=report.report_type,
-        status=report.status,
-        parameters=report.parameters_json,
-        file_path_pdf=report.file_path_pdf,
-        file_path_html=report.file_path_html,
-        error_message=report.error_message,
-        created_at=report.created_at,
-        completed_at=report.completed_at,
-    )
+    return ReportResponse.model_validate(report)
 
 
 # ==================== 报告生成端点 ====================
@@ -69,12 +57,8 @@ async def create_report(
         report = await report_crud.create_report(
             db=db,
             user_id=current_user.id,
-            name=report_data.name,
-            report_type=report_data.report_type,
-            parameters=report_data.parameters.dict() if report_data.parameters else {}
+            report_data=report_data,
         )
-        await db.commit()
-        await db.refresh(report)
 
         logger.info(f"报告记录创建成功: report_id={report.id}, user_id={current_user.id}")
 
@@ -128,7 +112,7 @@ async def list_reports(
                 )
 
         # 查询报告列表
-        reports = await report_crud.get_user_reports(
+        reports, total = await report_crud.get_user_reports(
             db=db,
             user_id=current_user.id,
             skip=skip,
@@ -136,21 +120,9 @@ async def list_reports(
             status=status_enum
         )
 
-        # 统计总数
-        from sqlalchemy import select, func
-        from app.models.report import Report
-
-        count_query = select(func.count(Report.id)).where(Report.user_id == current_user.id)
-        if status_enum:
-            count_query = count_query.where(Report.status == status_enum)
-
-        total = (await db.execute(count_query)).scalar()
-
         return ReportListResponse(
             reports=[_build_report_response(r) for r in reports],
             total=total,
-            skip=skip,
-            limit=limit
         )
 
     except HTTPException:

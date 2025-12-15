@@ -98,6 +98,25 @@ const routes = [
     component: () => import('@/views/user/ReportGenerator.vue'),
     meta: { requiresAuth: true },
   },
+  // 数据标注路由
+  {
+    path: '/annotations/tasks',
+    name: 'AnnotationTasks',
+    component: () => import('@/views/user/AnnotationTasks.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/annotations/create',
+    name: 'CreateAnnotationTask',
+    component: () => import('@/views/user/CreateAnnotationTask.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/annotations/tasks/:id',
+    name: 'AnnotationTaskDetail',
+    component: () => import('@/views/user/AnnotationTaskDetail.vue'),
+    meta: { requiresAuth: true },
+  },
   // 管理后台路由
   {
     path: '/admin',
@@ -121,6 +140,24 @@ const routes = [
         path: 'models',
         name: 'ModelManagement',
         component: () => import('@/views/admin/ModelManagement.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true },
+      },
+      {
+        path: 'training',
+        name: 'TrainingJobs',
+        component: () => import('@/views/admin/TrainingJobs.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true },
+      },
+      {
+        path: 'training/create',
+        name: 'CreateTrainingJob',
+        component: () => import('@/views/admin/CreateTrainingJob.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true },
+      },
+      {
+        path: 'training/:id',
+        name: 'TrainingMonitor',
+        component: () => import('@/views/admin/TrainingMonitor.vue'),
         meta: { requiresAuth: true, requiresAdmin: true },
       },
     ],

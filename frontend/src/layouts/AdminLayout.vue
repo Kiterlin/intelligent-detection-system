@@ -75,14 +75,6 @@
 
         <!-- 右侧操作区 -->
         <div class="flex items-center space-x-4">
-          <!-- 通知按钮 -->
-          <button class="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
-
           <!-- 用户下拉菜单 -->
           <el-dropdown trigger="click" @command="handleCommand">
             <div class="flex items-center space-x-2 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors">
@@ -189,6 +181,23 @@ const menuItems = [
         d: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'
       })
     ])
+  },
+  {
+    path: '/admin/training',
+    title: '模型训练',
+    icon: h('svg', {
+      class: 'w-5 h-5',
+      fill: 'none',
+      stroke: 'currentColor',
+      viewBox: '0 0 24 24'
+    }, [
+      h('path', {
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round',
+        'stroke-width': '2',
+        d: 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z'
+      })
+    ])
   }
 ]
 
@@ -202,7 +211,13 @@ const breadcrumbTitle = computed(() => {
   const titles = {
     '/admin/dashboard': '数据看板',
     '/admin/users': '用户管理',
-    '/admin/models': '模型管理'
+    '/admin/models': '模型管理',
+    '/admin/training': '模型训练',
+    '/admin/training/create': '创建训练任务'
+  }
+  // 如果是训练详情页，显示"训练监控"
+  if (route.path.startsWith('/admin/training/') && route.path !== '/admin/training/create') {
+    return '训练监控'
   }
   return titles[route.path] || ''
 })

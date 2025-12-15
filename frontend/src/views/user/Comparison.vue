@@ -18,6 +18,16 @@
               <p class="text-xs text-gray-500">Detection Comparison</p>
             </div>
           </div>
+          <!-- 返回首页按钮 -->
+          <button
+            class="px-4 py-2 bg-gray-100 rounded-lg flex items-center space-x-2 hover:bg-gray-200 transition-colors"
+            @click="goToHome"
+          >
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span class="text-sm font-medium text-gray-700">返回首页</span>
+          </button>
         </div>
       </div>
     </nav>
@@ -351,7 +361,7 @@ async function loadComparisonData() {
 
     // 调用对比API
     const response = await compareDetections(ids)
-    comparisonData.value = response.data
+    comparisonData.value = response
 
     // 获取每个检测记录的详细信息（用于显示图片）
     const idArray = ids.split(',').map(id => parseInt(id))
@@ -363,8 +373,8 @@ async function loadComparisonData() {
       return {
         id: recordData.detection_id,
         metadata: recordData.metadata,
-        imageUrl: getMediaUrl(detail.data.output_file_path),
-        data: detail.data
+        imageUrl: getMediaUrl(detail.output_file_path),
+        data: detail
       }
     })
 
@@ -383,12 +393,16 @@ function getMediaUrl(path) {
   return baseURL.replace('/api/v1', '') + '/' + path
 }
 
-function onImageLoad() {
+const onImageLoad = () => {
   // 图片加载完成的回调（预留用于同步控制）
 }
 
-function goBack() {
-  router.push('/history')
+const goBack = () => {
+  router.push('/detection-history')
+}
+
+const goToHome = () => {
+  router.push('/')
 }
 </script>
 
