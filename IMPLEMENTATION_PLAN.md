@@ -20,4 +20,4 @@
 **Goal**: 确认默认账号 `user/user123`、`admin/admin123` 可以正常登录（不再是“网络错误”）。
 **Success Criteria**: 浏览器登录成功或脚本返回 200；文档/脚本输出与实际行为一致。
 **Tests**: 运行 `./start.sh` 后通过前端登录；或使用脚本/HTTP请求验证登录返回 200。
-**Status**: In Progress
+**Status**: Complete

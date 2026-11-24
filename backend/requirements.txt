@@ -18,6 +18,8 @@ python-dateutil==2.8.2
 
 # 任务队列（第三阶段使用）
 celery==5.3.4
+# kombu 5.7+ 要求 redis-py>=6.1，会让 worker 启动即退出
+kombu==5.3.4
 redis==5.0.1
 
 # AI/ML（第三阶段使用）
@@ -35,6 +37,12 @@ httpx==0.25.1
 loguru==0.7.2
 pydantic==2.5.0
 pydantic-settings==2.1.0
+email-validator==2.2.0
+
+# 报告与告警（启动时会被路由导入，缺了 API 起不来）
+jinja2==3.1.6
+weasyprint==60.2
+aiosmtplib==3.0.1
 
 # 开发工具
 pytest==7.4.3

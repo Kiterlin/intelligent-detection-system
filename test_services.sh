@@ -6,6 +6,11 @@ echo "   智能目标检测系统 - 服务状态检查"
 echo "========================================"
 echo ""
 
+export PATH="${HOME}/.local/bin:${PATH}"
+if [ -d "${HOME}/.local/lib" ]; then
+    export LD_LIBRARY_PATH="${HOME}/.local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+fi
+
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'

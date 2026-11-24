@@ -1,5 +1,6 @@
 #!/bin/bash
-# 智能目标检测系统 - 一键启动脚本（Conda环境）
+# 智能目标检测系统 - 一键启动脚本
+# 不依赖 Conda / PostgreSQL：优先 backend/venv，数据库回退 SQLite，Redis 可用本地二进制。
 
 set -e
 
@@ -18,6 +19,12 @@ echo ""
 # 确保在正确的目录
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR"
+
+# 本地安装的 redis 不在系统 PATH 时也能被找到
+export PATH="${HOME}/.local/bin:${PATH}"
+if [ -d "${HOME}/.local/lib" ]; then
+    export LD_LIBRARY_PATH="${HOME}/.local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+fi
 
 # PID文件路径
 PID_FILE="$PROJECT_DIR/.service_pids"
@@ -49,39 +56,30 @@ cleanup() {
 trap cleanup INT TERM
 
 BACKEND_DIR="$PROJECT_DIR/backend"
-BACKEND_VENV_ACTIVATE="$BACKEND_DIR/venv/bin/activate"
 
-# 选择 Python 可执行文件
-if command -v python > /dev/null 2>&1; then
-    PYTHON_BIN="python"
-elif command -v python3 > /dev/null 2>&1; then
-    PYTHON_BIN="python3"
-else
-    echo -e "${RED}❌ 未找到 Python，请先安装/配置 Python 环境${NC}"
-    exit 1
-fi
-
-# 检查/提示 conda 环境（允许使用 backend/venv 作为后备）
-if [ -z "${CONDA_DEFAULT_ENV:-}" ]; then
-    echo -e "${YELLOW}⚠️  未检测到已激活的 conda 环境，将尝试使用 backend/venv（如存在）...${NC}"
-else
+# 优先使用项目虚拟环境，不要求 Conda
+if [ -n "${CONDA_DEFAULT_ENV:-}" ]; then
     echo -e "${GREEN}✅ Conda环境: $CONDA_DEFAULT_ENV${NC}"
 fi
 
-# 确保后端依赖可用（至少需要 uvicorn）
-if ! $PYTHON_BIN -c "import uvicorn" > /dev/null 2>&1; then
-    if [ -f "$BACKEND_VENV_ACTIVATE" ]; then
-        echo -e "${YELLOW}⚠️  当前环境缺少 uvicorn，尝试激活 backend/venv...${NC}"
-        # shellcheck disable=SC1090
-        source "$BACKEND_VENV_ACTIVATE"
-    fi
+if [ -x "$BACKEND_DIR/venv/bin/python" ]; then
+    PYTHON_BIN="$BACKEND_DIR/venv/bin/python"
+    echo -e "${GREEN}✅ Python: backend/venv${NC}"
+elif command -v python > /dev/null 2>&1; then
+    PYTHON_BIN="python"
+    echo -e "${YELLOW}⚠️  未找到 backend/venv，使用当前 python${NC}"
+elif command -v python3 > /dev/null 2>&1; then
+    PYTHON_BIN="python3"
+    echo -e "${YELLOW}⚠️  未找到 backend/venv，使用当前 python3${NC}"
+else
+    echo -e "${RED}❌ 未找到 Python，请先安装 Python 3.11+${NC}"
+    exit 1
 fi
 
-if ! $PYTHON_BIN -c "import uvicorn" > /dev/null 2>&1; then
+if ! "$PYTHON_BIN" -c "import uvicorn" > /dev/null 2>&1; then
     echo -e "${RED}❌ 后端依赖缺失：未检测到 uvicorn${NC}"
     echo "   解决方案："
-    echo "   1) 激活正确的环境（推荐）：conda activate RSD"
-    echo "   2) 或在后端目录安装依赖：cd backend && pip install -r requirements.txt"
+    echo "   cd backend && python3.11 -m venv venv && ./venv/bin/pip install -r requirements.txt"
     exit 1
 fi
 
@@ -95,7 +93,7 @@ fi
 
 wait_for_backend() {
     local url="http://127.0.0.1:8000/health"
-    local max_wait_seconds=20
+    local max_wait_seconds=60
 
     for ((i=1; i<=max_wait_seconds; i++)); do
         if $PYTHON_BIN - <<PY > /dev/null 2>&1
@@ -116,36 +114,62 @@ PY
     return 1
 }
 
-# 检查并启动PostgreSQL
 echo ""
 echo "📦 检查依赖服务..."
-if ! pg_isready -h localhost -p 5432 > /dev/null 2>&1; then
-    echo -e "${YELLOW}⚠️  PostgreSQL未运行，尝试启动...${NC}"
-    sudo service postgresql start
-    sleep 2
-    if pg_isready -h localhost -p 5432 > /dev/null 2>&1; then
-        echo -e "${GREEN}✅ PostgreSQL已启动${NC}"
-    else
-        echo -e "${RED}❌ PostgreSQL启动失败${NC}"
-        exit 1
-    fi
+
+# PostgreSQL 可选。没有它时强制使用 SQLite，避免 .env 里的 Postgres 地址把启动卡住。
+if command -v pg_isready > /dev/null 2>&1 && pg_isready -h localhost -p 5432 > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ PostgreSQL运行中（沿用 DATABASE_URL）${NC}"
 else
-    echo -e "${GREEN}✅ PostgreSQL运行中${NC}"
+    export DATABASE_URL="sqlite+aiosqlite:///./water_detection.db"
+    echo -e "${YELLOW}⚠️  PostgreSQL不可用，使用 SQLite: backend/water_detection.db${NC}"
 fi
 
-# 检查并启动Redis
-if ! redis-cli ping > /dev/null 2>&1; then
-    echo -e "${YELLOW}⚠️  Redis未运行，尝试启动...${NC}"
-    sudo service redis-server start > /dev/null 2>&1 || redis-server --daemonize yes
-    sleep 1
-    if redis-cli ping > /dev/null 2>&1; then
-        echo -e "${GREEN}✅ Redis已启动${NC}"
+# 检查并启动 Redis。优先系统服务，其次 PATH / ~/.local/bin 里的 redis-server。
+REDIS_CLI="$(command -v redis-cli || true)"
+REDIS_SERVER="$(command -v redis-server || true)"
+redis_ping() {
+    if [ -n "$REDIS_CLI" ]; then
+        "$REDIS_CLI" ping > /dev/null 2>&1
     else
-        echo -e "${RED}❌ Redis启动失败${NC}"
+        return 1
+    fi
+}
+
+if redis_ping; then
+    echo -e "${GREEN}✅ Redis运行中${NC}"
+else
+    echo -e "${YELLOW}⚠️  Redis未运行，尝试启动...${NC}"
+    if [ -z "$REDIS_SERVER" ]; then
+        echo -e "${RED}❌ 未找到 redis-server${NC}"
+        echo "   把 redis-server 放到 PATH 或 ~/.local/bin 后重试"
         exit 1
     fi
-else
-    echo -e "${GREEN}✅ Redis运行中${NC}"
+    mkdir -p "$PROJECT_DIR/.redis"
+    "$REDIS_SERVER" --daemonize yes \
+        --bind 127.0.0.1 --port 6379 \
+        --dir "$PROJECT_DIR/.redis" \
+        --dbfilename dump.rdb \
+        --logfile "$PROJECT_DIR/.redis/redis.log" \
+        --pidfile "$PROJECT_DIR/.redis/redis.pid" \
+        --protected-mode no
+    sleep 1
+    if redis_ping; then
+        echo -e "${GREEN}✅ Redis已启动${NC}"
+    else
+        echo -e "${RED}❌ Redis启动失败，日志: $PROJECT_DIR/.redis/redis.log${NC}"
+        exit 1
+    fi
+fi
+
+echo "👤 确保默认账号存在..."
+ENSURE_ENV=(PYTHONPATH="$BACKEND_DIR")
+if [ -n "${DATABASE_URL:-}" ]; then
+    ENSURE_ENV+=(DATABASE_URL="$DATABASE_URL")
+fi
+if ! (cd "$BACKEND_DIR" && env "${ENSURE_ENV[@]}" "$PYTHON_BIN" scripts/ensure_dev_users.py); then
+    echo -e "${RED}❌ 默认账号初始化失败${NC}"
+    exit 1
 fi
 
 echo ""
@@ -176,11 +200,16 @@ echo -e "${GREEN}✅ 后端健康检查通过${NC}"
 if [ $CELERY_ENABLED -eq 1 ]; then
     echo "⚙️  启动Celery异步任务服务..."
     cd "$PROJECT_DIR/backend"
-    nohup $PYTHON_BIN -m celery -A app.celery_app worker --loglevel=info > "$PROJECT_DIR/celery.log" 2>&1 &
+    nohup "$PYTHON_BIN" -m celery -A app.celery_app worker --loglevel=info > "$PROJECT_DIR/celery.log" 2>&1 &
     CELERY_PID=$!
     echo $CELERY_PID >> "$PID_FILE"
-    echo -e "${GREEN}✅ Celery服务已启动 (PID: $CELERY_PID)${NC}"
-    sleep 2
+    sleep 3
+    if ps -p "$CELERY_PID" > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ Celery服务已启动 (PID: $CELERY_PID)${NC}"
+    else
+        echo -e "${RED}❌ Celery启动后立即退出，视频检测不可用。日志：$PROJECT_DIR/celery.log${NC}"
+        tail -n 40 "$PROJECT_DIR/celery.log" 2>/dev/null || true
+    fi
 fi
 
 # 3. 启动前端 Vite

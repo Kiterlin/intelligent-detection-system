@@ -26,11 +26,13 @@ class CacheManager:
     async def connect(self):
         """建立 Redis 连接"""
         try:
-            self.redis = await redis.from_url(
+            self.redis = redis.from_url(
                 settings.REDIS_URL,
                 encoding="utf-8",
                 decode_responses=True,
                 max_connections=50,
+                socket_connect_timeout=2,
+                socket_timeout=2,
             )
             # 测试连接
             await self.redis.ping()

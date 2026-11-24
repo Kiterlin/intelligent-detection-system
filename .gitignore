@@ -48,6 +48,8 @@ Thumbs.db
 *.tmp
 *.bak
 *.log
+.service_pids
+.redis/
 
 # Temporary test scripts (backend root)
 backend/test_*.py
